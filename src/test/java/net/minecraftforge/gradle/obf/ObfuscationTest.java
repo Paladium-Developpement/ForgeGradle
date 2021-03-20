@@ -1,9 +1,17 @@
 package net.minecraftforge.gradle.obf;
 
+import net.minecraftforge.gradle.common.BasePlugin;
+import net.minecraftforge.gradle.common.Constants;
+import net.minecraftforge.gradle.delayed.DelayedFile;
+import net.minecraftforge.gradle.tasks.user.SingleDeobfTask;
+import org.apache.commons.io.FileUtils;
 import org.gradle.api.Project;
 import org.gradle.testfixtures.ProjectBuilder;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 
 public class ObfuscationTest {
     private static final File EXECUTION_ROOT = new File("build/tmp/testing/obf");
@@ -13,13 +21,13 @@ public class ObfuscationTest {
     private static final File DEP_CLEAN = new File(TEST_ROOT, "DepClean.jar");
     private static final File SRG = new File(TEST_ROOT, "obfuscate.srg");
 
-    private Project makeProject() {
+    private Project makeProject() throws IOException {
+        FileUtils.copyDirectory(new File("src/test/resources/"), new File("build/tmp/testing/obf/src/test/resources"));
         return ProjectBuilder.builder().withProjectDir(EXECUTION_ROOT).build();
     }
 
-/* // I don't know how to run thistest
     @Test
-    public void singleArtifactTest() {
+    public void singleArtifactTest() throws IOException {
         String expectedHash = Constants.hash(ACTUAL_OBF);
         File output = new File(EXECUTION_ROOT, "output.jar");
 
@@ -36,5 +44,4 @@ public class ObfuscationTest {
         String actualHash = Constants.hash(output);
         Assert.assertEquals(expectedHash, actualHash);
     }
-// */
 }
