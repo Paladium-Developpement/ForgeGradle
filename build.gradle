@@ -137,14 +137,14 @@ publishing {
                 url = 'https://github.com/MinecraftForge/ForgeGradle'
 
                 scm {
-                    url = 'https://github.com/anatawa12/ForgeGradle'
-                    connection = 'scm:git:git://github.com/anatawa12/ForgeGradle.git'
-                    developerConnection = 'scm:git:git@github.com:anatawa12/ForgeGradle.git'
+                    url = 'https://github.com/juanmuscaria/ForgeGradle'
+                    connection = 'scm:git:git://github.com/juanmuscaria/ForgeGradle.git'
+                    developerConnection = 'scm:git:git@github.com:juanmuscaria/ForgeGradle.git'
                 }
 
                 issueManagement {
                     system = 'github'
-                    url = 'https://github.com/anatawa12/ForgeGradle/issues'
+                    url = 'https://github.com/juanmuscaria/ForgeGradle/issues'
                 }
 
                 licenses {
@@ -197,9 +197,9 @@ if (project.hasProperty("push_release")) {
             repo = "maven"
             name = group + "." + project.name
             licenses = ["LGPL-2.1"]
-            websiteUrl = "https://github.com/anatawa12/ForgeGradle/"
-            issueTrackerUrl = "https://github.com/anatawa12/ForgeGradle/issues"
-            vcsUrl = "https://github.com/anatawa12/ForgeGradle.git"
+            websiteUrl = "https://github.com/juanmuscaria/ForgeGradle/"
+            issueTrackerUrl = "https://github.com/juanmuscaria/ForgeGradle/issues"
+            vcsUrl = "https://github.com/juanmuscaria/ForgeGradle.git"
             publicDownloadNumbers = true
             version {
                 name = project.version
