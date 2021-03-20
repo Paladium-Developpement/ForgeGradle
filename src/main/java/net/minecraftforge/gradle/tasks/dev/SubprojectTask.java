@@ -42,14 +42,16 @@ public class SubprojectTask extends DefaultTask {
         System.gc();
     }
 
-    private void executeTask(AbstractTask task) {
+    private void executeTask(final AbstractTask task) {
         for (Object dep : task.getTaskDependencies().getDependencies(task)) {
             executeTask((AbstractTask) dep);
         }
 
         if (!task.getState().getExecuted()) {
             getLogger().lifecycle(task.getPath());
-            task.execute();
+            for (Action<? super Task> action : task.getActions()) {
+                action.execute(task);
+            }
         }
     }
 

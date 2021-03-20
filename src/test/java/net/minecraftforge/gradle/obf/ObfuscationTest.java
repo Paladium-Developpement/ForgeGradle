@@ -39,7 +39,7 @@ public class ObfuscationTest {
         task.setOutJar(new DelayedFile(output));
         task.setDoesCache(false);
 
-        task.execute();
+        task.doTask();
 
         String actualHash = Constants.hash(output);
         Assert.assertEquals(expectedHash, actualHash);

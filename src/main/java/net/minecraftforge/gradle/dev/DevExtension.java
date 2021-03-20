@@ -4,7 +4,7 @@ import groovy.lang.Closure;
 import net.minecraftforge.gradle.common.BaseExtension;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
-import org.gradle.api.internal.ClosureBackedAction;
+import org.gradle.util.ClosureBackedAction;
 
 public class DevExtension extends BaseExtension {
     private String fmlDir;

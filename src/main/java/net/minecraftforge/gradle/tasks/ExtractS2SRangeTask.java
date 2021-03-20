@@ -249,41 +249,62 @@ public class ExtractS2SRangeTask extends DefaultTask {
         this.in.add(in);
     }
 
+//    public FileCollection getLibs() {
+//        if (projectFile != null && libs == null) // libs == null to avoid doing this any more than necessary..
+//        {
+//            File buildscript = projectFile.call();
+//            if (!buildscript.exists())
+//                return null;
+//
+//            Project proj = BasePlugin.getProject(buildscript, getProject());
+//            libs = proj.getConfigurations().getByName(projectConfig);
+//
+//            if (includeJar) {
+//                AbstractTask jarTask = (AbstractTask) proj.getTasks().getByName("jar");
+//                executeTask(jarTask);
+//                File compiled = (File) jarTask.property("archivePath");
+//                libs = getProject().files(compiled, libs);
+//
+//                if (getExcOutput() != null) {
+//                    extractExcInfo(compiled, getExcOutput());
+//                }
+//            }
+//        }
+//
+//        return libs;
+//    }
+    //replaced with FG3 method
+
     public FileCollection getLibs() {
-        if (projectFile != null && libs == null) // libs == null to avoid doing this any more than necessary..
-        {
-            File buildscript = projectFile.call();
-            if (!buildscript.exists())
-                return null;
+        FileCollection collection = null;
 
-            Project proj = BasePlugin.getProject(buildscript, getProject());
-            libs = proj.getConfigurations().getByName(projectConfig);
-
-            if (includeJar) {
-                AbstractTask jarTask = (AbstractTask) proj.getTasks().getByName("jar");
-                executeTask(jarTask);
-                File compiled = (File) jarTask.property("archivePath");
-                libs = getProject().files(compiled, libs);
-
-                if (getExcOutput() != null) {
-                    extractExcInfo(compiled, getExcOutput());
-                }
+        for (Object o : libs) {
+            FileCollection col;
+            if (o instanceof FileCollection) {
+                col = (FileCollection) o;
+            } else {
+                col = getProject().files(o);
             }
+
+            if (collection == null)
+                collection = col;
+            else
+                collection = collection.plus(col);
         }
 
-        return libs;
+        return collection;
     }
 
-    private void executeTask(AbstractTask task) {
-        for (Object dep : task.getTaskDependencies().getDependencies(task)) {
-            executeTask((AbstractTask) dep);
-        }
-
-        if (!task.getState().getExecuted()) {
-            getLogger().lifecycle(task.getPath());
-            task.execute();
-        }
-    }
+//    private void executeTask(AbstractTask task) {
+//        for (Object dep : task.getTaskDependencies().getDependencies(task)) {
+//            executeTask((AbstractTask) dep);
+//        }
+//
+//        if (!task.getState().getExecuted()) {
+//            getLogger().lifecycle(task.getPath());
+//            task.execute();
+//        }
+//    }
 
     public void setLibs(FileCollection libs) {
         this.libs = libs;

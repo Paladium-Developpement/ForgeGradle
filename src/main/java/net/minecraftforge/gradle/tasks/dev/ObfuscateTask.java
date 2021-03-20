@@ -13,6 +13,7 @@ import net.minecraftforge.gradle.extrastuff.ReobfExceptor;
 import org.gradle.api.Action;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.file.FileCollection;
 import org.gradle.api.internal.AbstractTask;
 import org.gradle.api.tasks.TaskAction;
@@ -87,14 +88,16 @@ public class ObfuscateTask extends DefaultTask {
         obfuscate(inJar, (FileCollection) compileTask.property("classpath"), srg);
     }
 
-    private void executeTask(AbstractTask task) {
+    private void executeTask(final AbstractTask task) {
         for (Object dep : task.getTaskDependencies().getDependencies(task)) {
             executeTask((AbstractTask) dep);
         }
 
         if (!task.getState().getExecuted()) {
             getLogger().lifecycle(task.getPath());
-            task.execute();
+            for (Action<? super Task> action : task.getActions()) {
+                action.execute(task);
+            }
         }
     }
 
