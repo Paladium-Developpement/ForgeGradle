@@ -51,7 +51,7 @@ public class Constants {
     public static final String MCP_URL = "http://files.minecraftforge.net/fernflower-fix-1.0.zip";
     public static final String ASSETS_URL = "http://resources.download.minecraft.net";
     public static final String LIBRARY_URL = "https://libraries.minecraft.net/";
-    public static final String FORGE_MAVEN = "http://files.minecraftforge.net/maven";
+    public static final String FORGE_MAVEN = "https://maven.minecraftforge.net/";
     public static final String ASSETS_INDEX_URL = "https://s3.amazonaws.com/Minecraft.Download/indexes/{ASSET_INDEX}.json";
 
     // MCP things
