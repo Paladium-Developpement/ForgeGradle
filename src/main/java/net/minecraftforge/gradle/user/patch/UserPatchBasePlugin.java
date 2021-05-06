@@ -1,5 +1,6 @@
 package net.minecraftforge.gradle.user.patch;
 
+import net.minecraftforge.gradle.StringUtils;
 import net.minecraftforge.gradle.common.Constants;
 import net.minecraftforge.gradle.delayed.DelayedFile;
 import net.minecraftforge.gradle.tasks.ProcessJarTask;
@@ -17,6 +18,7 @@ import org.gradle.api.tasks.SourceSet;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -70,6 +72,26 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
 
             @Override
             public void execute(Object arg0) {
+            	// BEGIN JEBANYE KOSTILY FOR ECLIPSE .CLASSPATH
+            	
+				try {
+					File classpath = new File(project.getProjectDir(), ".classpath");
+					if (classpath.exists() && classpath.isFile()) {
+						project.getLogger().lifecycle("Located Eclipse .classpath file: " + classpath);						
+					}
+					
+					if (StringUtils.replaceContainingString(classpath.toPath(), "bin",  "bin/default",  "bin/main")) {
+						project.getLogger().lifecycle("Successfully rectified duplicate output paths in .classpath");
+					} else
+						project.getLogger().lifecycle("Could not rectify duplicate output paths in .classpath; not found");
+				} catch (Exception ex) {
+					project.getLogger().error("Error when patching .classpath file:");
+					project.getLogger().error(ex.toString());
+				}
+				
+            	// END JEBANYE KOSTILY FOR ECLIPSE .CLASSPATH
+            	
+            	
                 // find the file
                 File f = new File(ECLIPSE_LOCATION);
                 if (!f.exists()) // folder doesnt exist

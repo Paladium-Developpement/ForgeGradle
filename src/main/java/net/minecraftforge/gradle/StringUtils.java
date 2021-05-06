@@ -8,11 +8,38 @@ import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+
+import org.gradle.api.logging.Logger;
 
 public final class StringUtils {
     private StringUtils() {
     }
+    
+	public static boolean replaceContainingString(Path filePath, String replace, String... find) throws IOException {
+		Charset charset = StandardCharsets.UTF_8;
+		boolean removed = false;
+
+		String content = new String(Files.readAllBytes(filePath), charset);
+		
+		for (String pattern : find) {
+			if (!removed && content.contains(pattern)) {
+				removed = true;
+			}
+			
+			content = content.replaceAll(pattern, replace);
+		}
+
+		if (removed)
+			Files.write(filePath, content.getBytes(charset));
+
+		return removed;
+	}
 
     public static String lower(String string) {
         return string.toLowerCase(Locale.ENGLISH);
