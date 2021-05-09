@@ -67,6 +67,25 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
             remap.dependsOn(patch);
         }
 
+        // Delete old .classpath file, because we need it fresh and clean
+		project.getTasks().getByName("eclipse").doFirst(new Action() {
+
+			@Override
+			public void execute(Object arg0) {
+				try {
+					File classpath = new File(project.getProjectDir(), ".classpath");
+					
+					if (classpath.exists() && classpath.isFile()) {
+						classpath.delete();
+						project.getLogger().error("Deleted old Eclipse .classpath file");
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+			}
+
+		});
+        
         // configure eclipse task to do extra stuff.
         project.getTasks().getByName("eclipse").doLast(new Action() {
 
@@ -77,7 +96,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
 				try {
 					File classpath = new File(project.getProjectDir(), ".classpath");
 					if (classpath.exists() && classpath.isFile()) {
-						project.getLogger().lifecycle("Located Eclipse .classpath file: " + classpath);						
+						project.getLogger().lifecycle("Located new Eclipse .classpath file: " + classpath);						
 					}
 					
 					if (StringUtils.replaceContainingString(classpath.toPath(), "bin",  "bin/default",  "bin/main")) {
