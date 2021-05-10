@@ -173,12 +173,15 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
         Logger logger = this.project.getLogger();
         logger.lifecycle("#################################################");
         logger.lifecycle("         ForgeGradle {}        ", this.getVersionString());
-        logger.lifecycle("  https://github.com/MinecraftForge/ForgeGradle  ");
+        logger.lifecycle("  https://github.com/juanmuscaria/ForgeGradle  ");
         logger.lifecycle("#################################################");
         logger.lifecycle("               Powered by MCP {}               ", this.delayedString("{MCP_VERSION}"));
         logger.lifecycle("             http://modcoderpack.com             ");
         logger.lifecycle("         by: Searge, ProfMobius, Fesh0r,         ");
         logger.lifecycle("         R4wk, ZeuX, IngisKahn, bspkrs           ");
+        logger.lifecycle("                                                 ");
+        logger.lifecycle("                  Reissued by:                   ");
+        logger.lifecycle("            juanmuscaria, Aizistral              ");
         logger.lifecycle("#################################################");
         displayBanner = false;
     }

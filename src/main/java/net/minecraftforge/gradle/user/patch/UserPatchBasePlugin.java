@@ -11,9 +11,11 @@ import net.minecraftforge.gradle.user.UserBasePlugin;
 import net.minecraftforge.gradle.user.UserConstants;
 import org.apache.tools.ant.types.Commandline;
 import org.gradle.api.Action;
+import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskAction;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -66,7 +68,10 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
             remap.setInJar(processed);
             remap.dependsOn(patch);
         }
-
+        
+        // Delete old .classpath file, because we need it fresh and clean
+        project.getTasks().getByName("eclipse").dependsOn(makeTask("deleteEclipseClasspath", DeleteClasspathTask.class));
+        
         // configure eclipse task to do extra stuff.
         project.getTasks().getByName("eclipse").doLast(new Action() {
 
@@ -77,7 +82,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
 				try {
 					File classpath = new File(project.getProjectDir(), ".classpath");
 					if (classpath.exists() && classpath.isFile()) {
-						project.getLogger().lifecycle("Located Eclipse .classpath file: " + classpath);						
+						project.getLogger().lifecycle("Located new Eclipse .classpath file: " + classpath);						
 					}
 					
 					if (StringUtils.replaceContainingString(classpath.toPath(), "bin",  "bin/default",  "bin/main")) {
@@ -348,5 +353,30 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
         if (decomp && remove) {
             (project.getTasks().getByName("applyBinPatches")).onlyIf(Constants.CALL_FALSE);
         }
+    }
+    
+    /**
+     * Sgorel saray - gori i hata.
+     * @author Integral
+     */
+    
+    public static class DeleteClasspathTask extends DefaultTask {
+    	public DeleteClasspathTask() {
+			super();
+		}
+    	
+    	@TaskAction
+    	public void doTask() {
+    		try {
+				File classpath = new File(this.getProject().getProjectDir(), ".classpath");
+				
+				if (classpath.exists() && classpath.isFile()) {
+					classpath.delete();
+					this.getProject().getLogger().lifecycle("Deleted old Eclipse .classpath file");
+				}
+			} catch (Exception ex) {
+				ex.printStackTrace();
+			}
+    	}
     }
 }
