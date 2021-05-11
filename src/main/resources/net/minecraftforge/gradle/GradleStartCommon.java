@@ -109,7 +109,7 @@ public abstract class GradleStartCommon {
     }
 
     private String[] getArgs() {
-        ArrayList<String> list = new ArrayList<>(22);
+        ArrayList<String> list = new ArrayList<String>(22);
 
         for (Map.Entry<String, String> e : this.argMap.entrySet()) {
             String val = e.getValue();
@@ -251,7 +251,7 @@ public abstract class GradleStartCommon {
             // NO-OP
         }
 
-        List<String> grimPatches = new ArrayList<>();
+        List<String> grimPatches = new ArrayList<String>();
 
         for (URL url : ((URLClassLoader) GradleStartCommon.class.getClassLoader()).getURLs()) {
             if (!url.getProtocol().startsWith("file"))
