@@ -251,6 +251,9 @@ public abstract class GradleStartCommon {
             // NO-OP
         }
 
+        LOGGER.info("Begin coremod and grimpatch search...");
+        long memorizedTime = System.currentTimeMillis();
+
         List<String> grimPatches = new ArrayList<String>();
 
         for (URL url : ((URLClassLoader) GradleStartCommon.class.getClassLoader()).getURLs()) {
@@ -328,6 +331,8 @@ public abstract class GradleStartCommon {
         if (grimPatches.size() > 0) { // If we have any patches, add them to properties or something
             System.setProperty(GRIMPATCH_VAR, Joiner.on("<@>").join(grimPatches));
         }
+
+        LOGGER.info("Finished coremod and grimpatch search, elapsed time: " + (System.currentTimeMillis() - memorizedTime) + "ms");
 
         // set property.
         Set<String> coremodsSet = Sets.newHashSet();
