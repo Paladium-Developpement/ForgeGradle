@@ -1,22 +1,58 @@
 package net.minecraftforge.gradle.user;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-import groovy.lang.Closure;
-import net.minecraftforge.gradle.common.BasePlugin;
-import net.minecraftforge.gradle.common.Constants;
-import net.minecraftforge.gradle.delayed.DelayedFile;
-import net.minecraftforge.gradle.json.JsonFactory;
-import net.minecraftforge.gradle.tasks.*;
-import net.minecraftforge.gradle.tasks.abstractutil.ExtractTask;
-import net.minecraftforge.gradle.tasks.user.SourceCopyTask;
-import net.minecraftforge.gradle.tasks.user.reobf.ArtifactSpec;
-import net.minecraftforge.gradle.tasks.user.reobf.ReobfTask;
-import org.gradle.api.*;
+import static net.minecraftforge.gradle.common.Constants.FERNFLOWER;
+import static net.minecraftforge.gradle.common.Constants.JAR_CLIENT_FRESH;
+import static net.minecraftforge.gradle.common.Constants.JAR_MERGED;
+import static net.minecraftforge.gradle.common.Constants.JAR_SERVER_FRESH;
+import static net.minecraftforge.gradle.user.UserConstants.ASTYLE_CFG;
+import static net.minecraftforge.gradle.user.UserConstants.CLASSIFIER_DECOMPILED;
+import static net.minecraftforge.gradle.user.UserConstants.CLASSIFIER_DEOBF_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.CLASSIFIER_SOURCES;
+import static net.minecraftforge.gradle.user.UserConstants.CONFIG_DEPS;
+import static net.minecraftforge.gradle.user.UserConstants.CONFIG_MC;
+import static net.minecraftforge.gradle.user.UserConstants.CONFIG_NATIVES;
+import static net.minecraftforge.gradle.user.UserConstants.CONFIG_START;
+import static net.minecraftforge.gradle.user.UserConstants.CONFIG_USERDEV;
+import static net.minecraftforge.gradle.user.UserConstants.CONF_DIR;
+import static net.minecraftforge.gradle.user.UserConstants.DEOBF_MCP_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.DEOBF_SRG_MCP_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.DEOBF_SRG_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.DIRTY_DIR;
+import static net.minecraftforge.gradle.user.UserConstants.EXC_JSON;
+import static net.minecraftforge.gradle.user.UserConstants.EXC_MCP;
+import static net.minecraftforge.gradle.user.UserConstants.EXC_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.FIELD_CSV;
+import static net.minecraftforge.gradle.user.UserConstants.GRADLE_START_CLIENT;
+import static net.minecraftforge.gradle.user.UserConstants.GRADLE_START_SERVER;
+import static net.minecraftforge.gradle.user.UserConstants.MAPPING_APPENDAGE;
+import static net.minecraftforge.gradle.user.UserConstants.MCP_PATCH_DIR;
+import static net.minecraftforge.gradle.user.UserConstants.MERGE_CFG;
+import static net.minecraftforge.gradle.user.UserConstants.METHOD_CSV;
+import static net.minecraftforge.gradle.user.UserConstants.PACKAGED_EXC;
+import static net.minecraftforge.gradle.user.UserConstants.PACKAGED_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.PARAM_CSV;
+import static net.minecraftforge.gradle.user.UserConstants.RECOMP_CLS_DIR;
+import static net.minecraftforge.gradle.user.UserConstants.RECOMP_SRC_DIR;
+import static net.minecraftforge.gradle.user.UserConstants.REOBF_NOTCH_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.REOBF_SRG;
+import static net.minecraftforge.gradle.user.UserConstants.SOURCES_DIR;
+
+import java.io.File;
+import java.io.IOException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.gradle.api.Action;
+import org.gradle.api.DefaultTask;
+import org.gradle.api.Project;
+import org.gradle.api.Task;
+import org.gradle.api.XmlProvider;
 import org.gradle.api.artifacts.Configuration.State;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
 import org.gradle.api.execution.TaskExecutionGraph;
@@ -25,7 +61,11 @@ import org.gradle.api.internal.plugins.DslObject;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.specs.Spec;
-import org.gradle.api.tasks.*;
+import org.gradle.api.tasks.GroovySourceSet;
+import org.gradle.api.tasks.JavaExec;
+import org.gradle.api.tasks.ScalaSourceSet;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.TaskDependency;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.api.tasks.compile.GroovyCompile;
@@ -37,19 +77,28 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
+import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 
-import static net.minecraftforge.gradle.common.Constants.*;
-import static net.minecraftforge.gradle.user.UserConstants.*;
+import groovy.lang.Closure;
+import net.minecraftforge.gradle.common.BasePlugin;
+import net.minecraftforge.gradle.common.Constants;
+import net.minecraftforge.gradle.delayed.DelayedFile;
+import net.minecraftforge.gradle.json.JsonFactory;
+import net.minecraftforge.gradle.tasks.CreateStartTask;
+import net.minecraftforge.gradle.tasks.DecompileTask;
+import net.minecraftforge.gradle.tasks.ExtractConfigTask;
+import net.minecraftforge.gradle.tasks.GenSrgTask;
+import net.minecraftforge.gradle.tasks.MergeJarsTask;
+import net.minecraftforge.gradle.tasks.ProcessJarTask;
+import net.minecraftforge.gradle.tasks.RemapSourcesTask;
+import net.minecraftforge.gradle.tasks.abstractutil.ExtractTask;
+import net.minecraftforge.gradle.tasks.user.SourceCopyTask;
+import net.minecraftforge.gradle.tasks.user.reobf.ArtifactSpec;
+import net.minecraftforge.gradle.tasks.user.reobf.ReobfTask;
 
 public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin<T> {
     @SuppressWarnings("serial")
@@ -60,59 +109,59 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         this.applyExternalPlugin("eclipse");
         this.applyExternalPlugin("idea");
 
-        hasScalaBefore = project.getPlugins().hasPlugin("scala");
-        hasGroovyBefore = project.getPlugins().hasPlugin("groovy");
+        this.hasScalaBefore = this.project.getPlugins().hasPlugin("scala");
+        this.hasGroovyBefore = this.project.getPlugins().hasPlugin("groovy");
 
-        addGitIgnore(); //Morons -.-
+        this.addGitIgnore(); //Morons -.-
 
-        configureDeps();
-        configureCompilation();
-        configureIntellij();
+        this.configureDeps();
+        this.configureCompilation();
+        this.configureIntellij();
 
         // create basic tasks.
-        tasks();
+        this.tasks();
 
         // create lifecycle tasks.
 
-        Task task = makeTask("setupCIWorkspace", DefaultTask.class);
+        Task task = this.makeTask("setupCIWorkspace", DefaultTask.class);
         task.dependsOn("genSrgs", "deobfBinJar");
         task.setDescription("Sets up the bare minimum to build a minecraft mod. Idea for CI servers");
         task.setGroup("ForgeGradle");
         //configureCISetup(task);
 
-        task = makeTask("setupDevWorkspace", DefaultTask.class);
+        task = this.makeTask("setupDevWorkspace", DefaultTask.class);
         task.dependsOn("genSrgs", "deobfBinJar", "makeStart");
         task.setDescription("CIWorkspace + natives and assets to run and test Minecraft");
         task.setGroup("ForgeGradle");
         //configureDevSetup(task);
 
-        task = makeTask("setupDecompWorkspace", DefaultTask.class);
+        task = this.makeTask("setupDecompWorkspace", DefaultTask.class);
         task.dependsOn("genSrgs", "makeStart", "repackMinecraft");
         task.setDescription("DevWorkspace + the deobfuscated Minecraft source linked as a source jar.");
         task.setGroup("ForgeGradle");
         //configureDecompSetup(task);
 
-        project.getGradle().getTaskGraph().whenReady(new Closure<Object>(this, null) {
+        this.project.getGradle().getTaskGraph().whenReady(new Closure<Object>(this, null) {
             @Override
             public Object call() {
-                TaskExecutionGraph graph = project.getGradle().getTaskGraph();
-                String path = project.getPath();
+                TaskExecutionGraph graph = UserBasePlugin.this.project.getGradle().getTaskGraph();
+                String path = UserBasePlugin.this.project.getPath();
 
                 if (graph.hasTask(path + "setupDecompWorkspace")) {
-                    getExtension().setDecomp();
-                    configurePostDecomp(true, true);
+                    UserBasePlugin.this.getExtension().setDecomp();
+                    UserBasePlugin.this.configurePostDecomp(true, true);
                 }
                 return null;
             }
 
             @Override
             public Object call(Object obj) {
-                return call();
+                return this.call();
             }
 
             @Override
             public Object call(Object... obj) {
-                return call();
+                return this.call();
             }
         });
     }
@@ -257,9 +306,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     protected abstract Iterable<String> getServerRunArgs();
 
-//    protected abstract void configureCISetup(Task task);
-//    protected abstract void configureDevSetup(Task task);
-//    protected abstract void configureDecompSetup(Task task);
+    //    protected abstract void configureCISetup(Task task);
+    //    protected abstract void configureDevSetup(Task task);
+    //    protected abstract void configureDecompSetup(Task task);
 
     @Override
     public String resolve(String pattern, Project project, T exten) {
@@ -269,13 +318,13 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         pattern = pattern.replace("{USER_DEV}", this.getUserDevCacheDir(exten));
         pattern = pattern.replace("{SRG_DIR}", this.getSrgCacheDir(exten));
         pattern = pattern.replace("{API_CACHE_DIR}", this.getApiCacheDir(exten));
-        pattern = pattern.replace("{MC_VERSION}", getMcVersion(exten));
+        pattern = pattern.replace("{MC_VERSION}", this.getMcVersion(exten));
 
         // do run config stuff.
-        pattern = pattern.replace("{RUN_CLIENT_TWEAKER}", getClientTweaker());
-        pattern = pattern.replace("{RUN_SERVER_TWEAKER}", getServerTweaker());
-        pattern = pattern.replace("{RUN_BOUNCE_CLIENT}", getClientRunClass());
-        pattern = pattern.replace("{RUN_BOUNCE_SERVER}", getServerRunClass());
+        pattern = pattern.replace("{RUN_CLIENT_TWEAKER}", this.getClientTweaker());
+        pattern = pattern.replace("{RUN_SERVER_TWEAKER}", this.getServerTweaker());
+        pattern = pattern.replace("{RUN_BOUNCE_CLIENT}", this.getClientRunClass());
+        pattern = pattern.replace("{RUN_BOUNCE_SERVER}", this.getServerRunClass());
 
         if (!exten.mappingsSet()) {
             // no mappings set?remove these tokens
@@ -283,53 +332,54 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             pattern = pattern.replace("{MAPPING_VERSION}", "");
         }
 
-        if (hasApiVersion())
-            pattern = pattern.replace("{API_VERSION}", getApiVersion(exten));
+        if (this.hasApiVersion()) {
+            pattern = pattern.replace("{API_VERSION}", this.getApiVersion(exten));
+        }
 
-        pattern = pattern.replace("{API_NAME}", getApiName());
+        pattern = pattern.replace("{API_NAME}", this.getApiName());
         return pattern;
     }
 
     protected void configureDeps() {
         // create configs
-        project.getConfigurations().create(CONFIG_USERDEV);
-        project.getConfigurations().create(CONFIG_NATIVES);
-        project.getConfigurations().create(CONFIG_START);
-        project.getConfigurations().create(CONFIG_DEPS);
-        project.getConfigurations().create(CONFIG_MC);
+        this.project.getConfigurations().create(CONFIG_USERDEV);
+        this.project.getConfigurations().create(CONFIG_NATIVES);
+        this.project.getConfigurations().create(CONFIG_START);
+        this.project.getConfigurations().create(CONFIG_DEPS);
+        this.project.getConfigurations().create(CONFIG_MC);
 
         // special userDev stuff
-        ExtractConfigTask extractUserDev = makeTask("extractUserDev", ExtractConfigTask.class);
-        extractUserDev.setOut(delayedFile("{USER_DEV}"));
+        ExtractConfigTask extractUserDev = this.makeTask("extractUserDev", ExtractConfigTask.class);
+        extractUserDev.setOut(this.delayedFile("{USER_DEV}"));
         extractUserDev.setConfig(CONFIG_USERDEV);
         extractUserDev.setDoesCache(true);
         extractUserDev.dependsOn("getVersionJson");
         extractUserDev.doLast(new Action<Task>() {
             @Override
             public void execute(Task arg0) {
-                readAndApplyJson(getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, arg0.getLogger());
+                UserBasePlugin.this.readAndApplyJson(UserBasePlugin.this.getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, arg0.getLogger());
             }
         });
-        project.getTasks().findByName("getAssetsIndex").dependsOn("extractUserDev");
+        this.project.getTasks().findByName("getAssetsIndex").dependsOn("extractUserDev");
 
         // special native stuff
-        ExtractConfigTask extractNatives = makeTask("extractNatives", ExtractConfigTask.class);
-        extractNatives.setOut(delayedFile(Constants.NATIVES_DIR));
+        ExtractConfigTask extractNatives = this.makeTask("extractNatives", ExtractConfigTask.class);
+        extractNatives.setOut(this.delayedFile(Constants.NATIVES_DIR));
         extractNatives.setConfig(CONFIG_NATIVES);
         extractNatives.exclude("META-INF/**", "META-INF/**");
         extractNatives.doesCache();
         extractNatives.dependsOn("extractUserDev");
 
         // special gradleStart stuff
-        project.getDependencies().add(CONFIG_START, project.files(delayedFile(getStartDir())));
+        this.project.getDependencies().add(CONFIG_START, this.project.files(this.delayedFile(this.getStartDir())));
 
         // extra libs folder.
-        project.getDependencies().add("compile", project.fileTree("libs"));
+        this.project.getDependencies().add("compile", this.project.fileTree("libs"));
 
         // make MC dependencies into normal compile classpath
-        project.getDependencies().add("compile", project.getConfigurations().getByName(CONFIG_DEPS));
-        project.getDependencies().add("compile", project.getConfigurations().getByName(CONFIG_MC));
-        project.getDependencies().add("runtime", project.getConfigurations().getByName(CONFIG_START));
+        this.project.getDependencies().add("compile", this.project.getConfigurations().getByName(CONFIG_DEPS));
+        this.project.getDependencies().add("compile", this.project.getConfigurations().getByName(CONFIG_MC));
+        this.project.getDependencies().add("runtime", this.project.getConfigurations().getByName(CONFIG_START));
     }
 
     /**
@@ -337,7 +387,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     protected void configureCompilation() {
         // get conventions
-        JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
+        JavaPluginConvention javaConv = (JavaPluginConvention) this.project.getConvention().getPlugins().get("java");
 
         SourceSet main = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
         SourceSet test = javaConv.getSourceSets().getByName(SourceSet.TEST_SOURCE_SET_NAME);
@@ -350,72 +400,76 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         main.setCompileClasspath(main.getCompileClasspath().plus(api.getOutput()));
         test.setCompileClasspath(test.getCompileClasspath().plus(api.getOutput()));
 
-        project.getConfigurations().getByName("apiCompile").extendsFrom(project.getConfigurations().getByName("compile"));
-        project.getConfigurations().getByName("testCompile").extendsFrom(project.getConfigurations().getByName("apiCompile"));
+        this.project.getConfigurations().getByName("apiCompile").extendsFrom(this.project.getConfigurations().getByName("compile"));
+        this.project.getConfigurations().getByName("testCompile").extendsFrom(this.project.getConfigurations().getByName("apiCompile"));
 
         // set compile not to take from libs
-        File dirRoot_main = new File(project.getBuildDir(), "sources/"+main.getName());
+        File dirRoot_main = new File(this.project.getBuildDir(), "sources/"+main.getName());
         File dir_main = new File(dirRoot_main, "java");
 
-        File dirRoot_test = new File(project.getBuildDir(), "sources/"+test.getName());
+        File dirRoot_test = new File(this.project.getBuildDir(), "sources/"+test.getName());
         File dir_test = new File(dirRoot_test, "java");
 
-        File dirRoot_api = new File(project.getBuildDir(), "sources/"+api.getName());
+        File dirRoot_api = new File(this.project.getBuildDir(), "sources/"+api.getName());
         File dir_api = new File(dirRoot_api, "java");
 
-        JavaCompile compileTask = ((JavaCompile) project.getTasks().getByName(main.getCompileJavaTaskName()));
+        JavaCompile compileTask = ((JavaCompile) this.project.getTasks().getByName(main.getCompileJavaTaskName()));
         compileTask.source(dir_main, dir_test, dir_api);
     }
 
     private void readAndApplyJson(File file, String depConfig, String nativeConfig, Logger log) {
-        if (version == null) {
+        if (this.version == null) {
             try {
-                version = JsonFactory.loadVersion(file, delayedFile(Constants.JSONS_DIR).call());
+                this.version = JsonFactory.loadVersion(file, this.delayedFile(Constants.JSONS_DIR).call());
             } catch (Exception e) {
                 log.error("" + file + " could not be parsed");
                 Throwables.propagate(e);
             }
         }
 
-        if (hasAppliedJson)
+        if (this.hasAppliedJson)
             return;
 
         // apply the dep info.
-        DependencyHandler handler = project.getDependencies();
+        DependencyHandler handler = this.project.getDependencies();
 
         // actual dependencies
-        if (project.getConfigurations().getByName(depConfig).getState() == State.UNRESOLVED) {
-            for (net.minecraftforge.gradle.json.version.Library lib : version.getLibraries()) {
-                if (lib.natives == null)
+        if (this.project.getConfigurations().getByName(depConfig).getState() == State.UNRESOLVED) {
+            for (net.minecraftforge.gradle.json.version.Library lib : this.version.getLibraries()) {
+                if (lib.natives == null) {
                     handler.add(depConfig, lib.getArtifactName());
+                }
             }
-        } else
+        } else {
             log.debug("RESOLVED: " + depConfig);
+        }
 
         // the natives
-        if (project.getConfigurations().getByName(nativeConfig).getState() == State.UNRESOLVED) {
-            for (net.minecraftforge.gradle.json.version.Library lib : version.getLibraries()) {
-                if (lib.natives != null)
+        if (this.project.getConfigurations().getByName(nativeConfig).getState() == State.UNRESOLVED) {
+            for (net.minecraftforge.gradle.json.version.Library lib : this.version.getLibraries()) {
+                if (lib.natives != null) {
                     handler.add(nativeConfig, lib.getArtifactName());
+                }
             }
-        } else
+        } else {
             log.debug("RESOLVED: " + nativeConfig);
+        }
 
-        hasAppliedJson = true;
+        this.hasAppliedJson = true;
     }
 
     @SuppressWarnings("serial")
     protected void configureIntellij() {
-        IdeaModel ideaConv = (IdeaModel) project.getExtensions().getByName("idea");
+        IdeaModel ideaConv = (IdeaModel) this.project.getExtensions().getByName("idea");
 
-        ideaConv.getModule().getExcludeDirs().addAll(project.files(".gradle", "build", ".idea").getFiles());
+        ideaConv.getModule().getExcludeDirs().addAll(this.project.files(".gradle", "build", ".idea").getFiles());
         ideaConv.getModule().setDownloadJavadoc(true);
         ideaConv.getModule().setDownloadSources(true);
 
         // fix the idea bug
         ideaConv.getModule().setInheritOutputDirs(true);
 
-        Task task = makeTask("genIntellijRuns", DefaultTask.class);
+        Task task = this.makeTask("genIntellijRuns", DefaultTask.class);
         task.doLast(new Action<Task>() {
             @Override
             public void execute(Task task) {
@@ -447,7 +501,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                     DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
                     Document doc = docBuilder.parse(file);
 
-                    injectIntellijRuns(doc, module);
+                    UserBasePlugin.this.injectIntellijRuns(doc, module);
 
                     // write the content into xml file
                     TransformerFactory transformerFactory = TransformerFactory.newInstance();
@@ -473,11 +527,12 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             return;
 
         ideaConv.getWorkspace().getIws().withXml(new Closure<Object>(this, null) {
+            @Override
             public Object call(Object... obj) {
                 Element root = ((XmlProvider) this.getDelegate()).asElement();
                 Document doc = root.getOwnerDocument();
                 try {
-                    injectIntellijRuns(doc, project.getProjectDir().getCanonicalPath());
+                    UserBasePlugin.this.injectIntellijRuns(doc, UserBasePlugin.this.project.getProjectDir().getCanonicalPath());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -503,53 +558,54 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         String[][] config = new String[][]
                 {
-                        new String[]
-                                {
-                                        "Minecraft Client",
-                                        GRADLE_START_CLIENT,
-                                        "-Xincgc -Xmx1024M -Xms1024M",
-                                        Joiner.on(' ').join(getClientRunArgs())
-                                },
-                        new String[]
-                                {
-                                        "Minecraft Server",
-                                        GRADLE_START_SERVER,
-                                        "-Xincgc -Dfml.ignoreInvalidMinecraftCertificates=true",
-                                        Joiner.on(' ').join(getServerRunArgs())
-                                }
+            new String[]
+                    {
+                            "Minecraft Client",
+                            GRADLE_START_CLIENT,
+                            "-Xincgc -Xmx1024M -Xms1024M",
+                            Joiner.on(' ').join(this.getClientRunArgs())
+                    },
+                    new String[]
+                            {
+                                    "Minecraft Server",
+                                    GRADLE_START_SERVER,
+                                    "-Xincgc -Dfml.ignoreInvalidMinecraftCertificates=true",
+                                    Joiner.on(' ').join(this.getServerRunArgs())
+                            }
                 };
 
-        for (String[] data : config) {
-            Element child = add(root, "configuration",
-                    "default", "false",
-                    "name", data[0],
-                    "type", "Application",
-                    "factoryName", "Application",
-                    "default", "false");
+                for (String[] data : config) {
+                    Element child = this.add(root, "configuration",
+                            "default", "false",
+                            "name", data[0],
+                            "type", "Application",
+                            "factoryName", "Application",
+                            "default", "false");
 
-            add(child, "extension",
-                    "name", "coverage",
-                    "enabled", "false",
-                    "sample_coverage", "true",
-                    "runner", "idea");
-            add(child, "option", "name", "MAIN_CLASS_NAME", "value", data[1]);
-            add(child, "option", "name", "VM_PARAMETERS", "value", data[2]);
-            add(child, "option", "name", "PROGRAM_PARAMETERS", "value", data[3]);
-            add(child, "option", "name", "WORKING_DIRECTORY", "value", "file://" + delayedFile("{RUN_DIR}").call().getCanonicalPath().replace(module, "$PROJECT_DIR$"));
-            add(child, "option", "name", "ALTERNATIVE_JRE_PATH_ENABLED", "value", "false");
-            add(child, "option", "name", "ALTERNATIVE_JRE_PATH", "value", "");
-            add(child, "option", "name", "ENABLE_SWING_INSPECTOR", "value", "false");
-            add(child, "option", "name", "ENV_VARIABLES");
-            add(child, "option", "name", "PASS_PARENT_ENVS", "value", "true");
-            add(child, "module", "name", ((IdeaModel) project.getExtensions().getByName("idea")).getModule().getName());
-            add(child, "envs");
-            add(child, "RunnerSettings", "RunnerId", "Run");
-            add(child, "ConfigurationWrapper", "RunnerId", "Run");
-            add(child, "method");
-        }
-        File f = delayedFile("{RUN_DIR}").call();
-        if (!f.exists())
-            f.mkdirs();
+                    this.add(child, "extension",
+                            "name", "coverage",
+                            "enabled", "false",
+                            "sample_coverage", "true",
+                            "runner", "idea");
+                    this.add(child, "option", "name", "MAIN_CLASS_NAME", "value", data[1]);
+                    this.add(child, "option", "name", "VM_PARAMETERS", "value", data[2]);
+                    this.add(child, "option", "name", "PROGRAM_PARAMETERS", "value", data[3]);
+                    this.add(child, "option", "name", "WORKING_DIRECTORY", "value", "file://" + this.delayedFile("{RUN_DIR}").call().getCanonicalPath().replace(module, "$PROJECT_DIR$"));
+                    this.add(child, "option", "name", "ALTERNATIVE_JRE_PATH_ENABLED", "value", "false");
+                    this.add(child, "option", "name", "ALTERNATIVE_JRE_PATH", "value", "");
+                    this.add(child, "option", "name", "ENABLE_SWING_INSPECTOR", "value", "false");
+                    this.add(child, "option", "name", "ENV_VARIABLES");
+                    this.add(child, "option", "name", "PASS_PARENT_ENVS", "value", "true");
+                    this.add(child, "module", "name", ((IdeaModel) this.project.getExtensions().getByName("idea")).getModule().getName());
+                    this.add(child, "envs");
+                    this.add(child, "RunnerSettings", "RunnerId", "Run");
+                    this.add(child, "ConfigurationWrapper", "RunnerId", "Run");
+                    this.add(child, "method");
+                }
+                File f = this.delayedFile("{RUN_DIR}").call();
+                if (!f.exists()) {
+                    f.mkdirs();
+                }
     }
 
     private Element add(Element parent, String name, String... values) {
@@ -563,103 +619,103 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
     private void tasks() {
         {
-            GenSrgTask task = makeTask("genSrgs", GenSrgTask.class);
-            task.setInSrg(delayedFile(PACKAGED_SRG));
-            task.setInExc(delayedFile(PACKAGED_EXC));
-            task.setMethodsCsv(delayedFile(METHOD_CSV));
-            task.setFieldsCsv(delayedFile(FIELD_CSV));
-            task.setNotchToSrg(delayedFile(DEOBF_SRG_SRG));
-            task.setNotchToMcp(delayedFile(DEOBF_MCP_SRG));
-            task.setSrgToMcp(delayedFile(DEOBF_SRG_MCP_SRG));
-            task.setMcpToSrg(delayedFile(REOBF_SRG));
-            task.setMcpToNotch(delayedFile(REOBF_NOTCH_SRG));
-            task.setSrgExc(delayedFile(EXC_SRG));
-            task.setMcpExc(delayedFile(EXC_MCP));
+            GenSrgTask task = this.makeTask("genSrgs", GenSrgTask.class);
+            task.setInSrg(this.delayedFile(PACKAGED_SRG));
+            task.setInExc(this.delayedFile(PACKAGED_EXC));
+            task.setMethodsCsv(this.delayedFile(METHOD_CSV));
+            task.setFieldsCsv(this.delayedFile(FIELD_CSV));
+            task.setNotchToSrg(this.delayedFile(DEOBF_SRG_SRG));
+            task.setNotchToMcp(this.delayedFile(DEOBF_MCP_SRG));
+            task.setSrgToMcp(this.delayedFile(DEOBF_SRG_MCP_SRG));
+            task.setMcpToSrg(this.delayedFile(REOBF_SRG));
+            task.setMcpToNotch(this.delayedFile(REOBF_NOTCH_SRG));
+            task.setSrgExc(this.delayedFile(EXC_SRG));
+            task.setMcpExc(this.delayedFile(EXC_MCP));
             task.dependsOn("extractUserDev", "extractMcpData");
         }
 
         {
-            MergeJarsTask task = makeTask("mergeJars", MergeJarsTask.class);
-            task.setClient(delayedFile(JAR_CLIENT_FRESH));
-            task.setServer(delayedFile(JAR_SERVER_FRESH));
-            task.setOutJar(delayedFile(JAR_MERGED));
-            task.setMergeCfg(delayedFile(MERGE_CFG));
-            task.setMcVersion(delayedString("{MC_VERSION}"));
+            MergeJarsTask task = this.makeTask("mergeJars", MergeJarsTask.class);
+            task.setClient(this.delayedFile(JAR_CLIENT_FRESH));
+            task.setServer(this.delayedFile(JAR_SERVER_FRESH));
+            task.setOutJar(this.delayedFile(JAR_MERGED));
+            task.setMergeCfg(this.delayedFile(MERGE_CFG));
+            task.setMcVersion(this.delayedString("{MC_VERSION}"));
             task.dependsOn("extractUserDev", "downloadClient", "downloadServer");
         }
 
         {
-            String name = getBinDepName() + "-" + (hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + ".jar";
+            String name = this.getBinDepName() + "-" + (this.hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + ".jar";
 
-            ProcessJarTask task = makeTask("deobfBinJar", ProcessJarTask.class);
-            task.setSrg(delayedFile(DEOBF_MCP_SRG));
-            task.setExceptorJson(delayedFile(EXC_JSON));
-            task.setExceptorCfg(delayedFile(EXC_MCP));
-            task.setFieldCsv(delayedFile(FIELD_CSV));
-            task.setMethodCsv(delayedFile(METHOD_CSV));
-            task.setInJar(delayedFile(JAR_MERGED));
-            task.setOutCleanJar(delayedFile("{API_CACHE_DIR}/" + MAPPING_APPENDAGE + name));
-            task.setOutDirtyJar(delayedFile(DIRTY_DIR + "/" + name));
+            ProcessJarTask task = this.makeTask("deobfBinJar", ProcessJarTask.class);
+            task.setSrg(this.delayedFile(DEOBF_MCP_SRG));
+            task.setExceptorJson(this.delayedFile(EXC_JSON));
+            task.setExceptorCfg(this.delayedFile(EXC_MCP));
+            task.setFieldCsv(this.delayedFile(FIELD_CSV));
+            task.setMethodCsv(this.delayedFile(METHOD_CSV));
+            task.setInJar(this.delayedFile(JAR_MERGED));
+            task.setOutCleanJar(this.delayedFile("{API_CACHE_DIR}/" + MAPPING_APPENDAGE + name));
+            task.setOutDirtyJar(this.delayedFile(DIRTY_DIR + "/" + name));
             task.setApplyMarkers(false);
             task.setStripSynthetics(true);
-            configureDeobfuscation(task);
+            this.configureDeobfuscation(task);
             task.dependsOn("downloadMcpTools", "mergeJars", "genSrgs");
         }
 
         {
-            String name = "{API_NAME}-" + (hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + "-" + CLASSIFIER_DEOBF_SRG + ".jar";
+            String name = "{API_NAME}-" + (this.hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + "-" + CLASSIFIER_DEOBF_SRG + ".jar";
 
-            ProcessJarTask task = makeTask("deobfuscateJar", ProcessJarTask.class);
-            task.setSrg(delayedFile(DEOBF_SRG_SRG));
-            task.setExceptorJson(delayedFile(EXC_JSON));
-            task.setExceptorCfg(delayedFile(EXC_SRG));
-            task.setInJar(delayedFile(JAR_MERGED));
-            task.setOutCleanJar(delayedFile("{API_CACHE_DIR}/" + name));
-            task.setOutDirtyJar(delayedFile(DIRTY_DIR + "/" + name));
+            ProcessJarTask task = this.makeTask("deobfuscateJar", ProcessJarTask.class);
+            task.setSrg(this.delayedFile(DEOBF_SRG_SRG));
+            task.setExceptorJson(this.delayedFile(EXC_JSON));
+            task.setExceptorCfg(this.delayedFile(EXC_SRG));
+            task.setInJar(this.delayedFile(JAR_MERGED));
+            task.setOutCleanJar(this.delayedFile("{API_CACHE_DIR}/" + name));
+            task.setOutDirtyJar(this.delayedFile(DIRTY_DIR + "/" + name));
             task.setApplyMarkers(true);
-            configureDeobfuscation(task);
+            this.configureDeobfuscation(task);
             task.dependsOn("downloadMcpTools", "mergeJars", "genSrgs");
         }
 
         {
-            ReobfTask task = makeTask("reobf", ReobfTask.class);
+            ReobfTask task = this.makeTask("reobf", ReobfTask.class);
             task.dependsOn("genSrgs");
-            task.setExceptorCfg(delayedFile(EXC_SRG));
-            task.setSrg(delayedFile(REOBF_SRG));
-            task.setFieldCsv(delayedFile(FIELD_CSV));
-            task.setFieldCsv(delayedFile(METHOD_CSV));
-            task.setMcVersion(delayedString("{MC_VERSION}"));
+            task.setExceptorCfg(this.delayedFile(EXC_SRG));
+            task.setSrg(this.delayedFile(REOBF_SRG));
+            task.setFieldCsv(this.delayedFile(FIELD_CSV));
+            task.setFieldCsv(this.delayedFile(METHOD_CSV));
+            task.setMcVersion(this.delayedString("{MC_VERSION}"));
 
             task.mustRunAfter("test");
-            project.getTasks().getByName("assemble").dependsOn(task);
-            project.getTasks().getByName("uploadArchives").dependsOn(task);
+            this.project.getTasks().getByName("assemble").dependsOn(task);
+            this.project.getTasks().getByName("uploadArchives").dependsOn(task);
         }
 
         {
             // create GradleStart
-            CreateStartTask task = makeTask("makeStart", CreateStartTask.class);
+            CreateStartTask task = this.makeTask("makeStart", CreateStartTask.class);
             task.addResource("GradleStart.java");
             task.addResource("GradleStartServer.java");
             task.addResource("net/minecraftforge/gradle/GradleStartCommon.java");
             task.addResource("net/minecraftforge/gradle/OldPropertyMapSerializer.java");
             task.addResource("net/minecraftforge/gradle/tweakers/CoremodTweaker.java");
             task.addResource("net/minecraftforge/gradle/tweakers/AccessTransformerTweaker.java");
-            task.addReplacement("@@MCVERSION@@", delayedString("{MC_VERSION}"));
-            task.addReplacement("@@ASSETINDEX@@", delayedString("{ASSET_INDEX}"));
-            task.addReplacement("@@ASSETSDIR@@", delayedFile("{CACHE_DIR}/minecraft/assets"));
-            task.addReplacement("@@NATIVESDIR@@", delayedFile(Constants.NATIVES_DIR));
-            task.addReplacement("@@SRGDIR@@", delayedFile("{SRG_DIR}"));
-            task.addReplacement("@@SRG_NOTCH_SRG@@", delayedFile(UserConstants.DEOBF_SRG_SRG));
-            task.addReplacement("@@SRG_NOTCH_MCP@@", delayedFile(UserConstants.DEOBF_MCP_SRG));
-            task.addReplacement("@@SRG_SRG_MCP@@", delayedFile(UserConstants.DEOBF_SRG_MCP_SRG));
-            task.addReplacement("@@SRG_MCP_SRG@@", delayedFile(UserConstants.REOBF_SRG));
-            task.addReplacement("@@SRG_MCP_NOTCH@@", delayedFile(UserConstants.REOBF_NOTCH_SRG));
-            task.addReplacement("@@CSVDIR@@", delayedFile("{MCP_DATA_DIR}"));
-            task.addReplacement("@@CLIENTTWEAKER@@", delayedString("{RUN_CLIENT_TWEAKER}"));
-            task.addReplacement("@@SERVERTWEAKER@@", delayedString("{RUN_SERVER_TWEAKER}"));
-            task.addReplacement("@@BOUNCERCLIENT@@", delayedString("{RUN_BOUNCE_CLIENT}"));
-            task.addReplacement("@@BOUNCERSERVER@@", delayedString("{RUN_BOUNCE_SERVER}"));
-            task.setStartOut(delayedFile(getStartDir()));
+            task.addReplacement("@@MCVERSION@@", this.delayedString("{MC_VERSION}"));
+            task.addReplacement("@@ASSETINDEX@@", this.delayedString("{ASSET_INDEX}"));
+            task.addReplacement("@@ASSETSDIR@@", this.delayedFile("{CACHE_DIR}/minecraft/assets"));
+            task.addReplacement("@@NATIVESDIR@@", this.delayedFile(Constants.NATIVES_DIR));
+            task.addReplacement("@@SRGDIR@@", this.delayedFile("{SRG_DIR}"));
+            task.addReplacement("@@SRG_NOTCH_SRG@@", this.delayedFile(UserConstants.DEOBF_SRG_SRG));
+            task.addReplacement("@@SRG_NOTCH_MCP@@", this.delayedFile(UserConstants.DEOBF_MCP_SRG));
+            task.addReplacement("@@SRG_SRG_MCP@@", this.delayedFile(UserConstants.DEOBF_SRG_MCP_SRG));
+            task.addReplacement("@@SRG_MCP_SRG@@", this.delayedFile(UserConstants.REOBF_SRG));
+            task.addReplacement("@@SRG_MCP_NOTCH@@", this.delayedFile(UserConstants.REOBF_NOTCH_SRG));
+            task.addReplacement("@@CSVDIR@@", this.delayedFile("{MCP_DATA_DIR}"));
+            task.addReplacement("@@CLIENTTWEAKER@@", this.delayedString("{RUN_CLIENT_TWEAKER}"));
+            task.addReplacement("@@SERVERTWEAKER@@", this.delayedString("{RUN_SERVER_TWEAKER}"));
+            task.addReplacement("@@BOUNCERCLIENT@@", this.delayedString("{RUN_BOUNCE_CLIENT}"));
+            task.addReplacement("@@BOUNCERSERVER@@", this.delayedString("{RUN_BOUNCE_SERVER}"));
+            task.setStartOut(this.delayedFile(this.getStartDir()));
             task.compileResources(CONFIG_DEPS);
 
             // see delayed task config for some more config
@@ -667,37 +723,37 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             task.dependsOn("extractUserDev", "getAssets", "getAssetsIndex", "extractNatives");
         }
 
-        createPostDecompTasks();
-        createExecTasks();
-        createSourceCopyTasks();
+        this.createPostDecompTasks();
+        this.createExecTasks();
+        this.createSourceCopyTasks();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private final void createPostDecompTasks() {
-        DelayedFile decompOut = delayedDirtyFile(null, CLASSIFIER_DECOMPILED, "jar", false);
-        DelayedFile remapped = delayedDirtyFile(getSrcDepName(), CLASSIFIER_SOURCES, "jar");
-        final DelayedFile recomp = delayedDirtyFile(getSrcDepName(), null, "jar");
-        final DelayedFile recompSrc = delayedFile(RECOMP_SRC_DIR);
-        final DelayedFile recompCls = delayedFile(RECOMP_CLS_DIR);
+        DelayedFile decompOut = this.delayedDirtyFile(null, CLASSIFIER_DECOMPILED, "jar", false);
+        DelayedFile remapped = this.delayedDirtyFile(this.getSrcDepName(), CLASSIFIER_SOURCES, "jar");
+        final DelayedFile recomp = this.delayedDirtyFile(this.getSrcDepName(), null, "jar");
+        final DelayedFile recompSrc = this.delayedFile(RECOMP_SRC_DIR);
+        final DelayedFile recompCls = this.delayedFile(RECOMP_CLS_DIR);
 
-        DecompileTask decomp = makeTask("decompile", DecompileTask.class);
+        DecompileTask decomp = this.makeTask("decompile", DecompileTask.class);
         {
-            decomp.setInJar(delayedDirtyFile(null, CLASSIFIER_DEOBF_SRG, "jar", false));
+            decomp.setInJar(this.delayedDirtyFile(null, CLASSIFIER_DEOBF_SRG, "jar", false));
             decomp.setOutJar(decompOut);
-            decomp.setFernFlower(delayedFile(FERNFLOWER));
-            decomp.setPatch(delayedFile(MCP_PATCH_DIR));
-            decomp.setAstyleConfig(delayedFile(ASTYLE_CFG));
+            decomp.setFernFlower(this.delayedFile(FERNFLOWER));
+            decomp.setPatch(this.delayedFile(MCP_PATCH_DIR));
+            decomp.setAstyleConfig(this.delayedFile(ASTYLE_CFG));
             decomp.dependsOn("downloadMcpTools", "deobfuscateJar", "genSrgs");
         }
 
         // Remap to MCP names
-        RemapSourcesTask remap = makeTask("remapJar", RemapSourcesTask.class);
+        RemapSourcesTask remap = this.makeTask("remapJar", RemapSourcesTask.class);
         {
             remap.setInJar(decompOut);
             remap.setOutJar(remapped);
-            remap.setFieldsCsv(delayedFile(FIELD_CSV));
-            remap.setMethodsCsv(delayedFile(METHOD_CSV));
-            remap.setParamsCsv(delayedFile(PARAM_CSV));
+            remap.setFieldsCsv(this.delayedFile(FIELD_CSV));
+            remap.setMethodsCsv(this.delayedFile(METHOD_CSV));
+            remap.setParamsCsv(this.delayedFile(PARAM_CSV));
             remap.setDoesJavadocs(true);
             remap.dependsOn(decomp);
         }
@@ -722,7 +778,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             }
         };
 
-        ExtractTask extract = makeTask("extractMinecraftSrc", ExtractTask.class);
+        ExtractTask extract = this.makeTask("extractMinecraftSrc", ExtractTask.class);
         {
             extract.from(remapped);
             extract.into(recompSrc);
@@ -733,19 +789,19 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             extract.onlyIf(onlyIfCheck);
         }
 
-        JavaCompile recompTask = makeTask("recompMinecraft", JavaCompile.class);
+        JavaCompile recompTask = this.makeTask("recompMinecraft", JavaCompile.class);
         {
             recompTask.setSource(recompSrc);
             recompTask.setSourceCompatibility("1.6");
             recompTask.setTargetCompatibility("1.6");
-            recompTask.setClasspath(project.getConfigurations().getByName(CONFIG_DEPS));
+            recompTask.setClasspath(this.project.getConfigurations().getByName(CONFIG_DEPS));
             recompTask.dependsOn(extract);
             recompTask.getOptions().setWarnings(false);
 
             recompTask.onlyIf(onlyIfCheck);
         }
 
-        Jar repackageTask = makeTask("repackMinecraft", Jar.class);
+        Jar repackageTask = this.makeTask("repackMinecraft", Jar.class);
         {
             repackageTask.from(recompSrc);
             repackageTask.from(recompCls);
@@ -763,15 +819,16 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         DelayedFile path;
 
         MakeDirExist(DelayedFile path) {
-            super(project);
+            super(UserBasePlugin.this.project);
             this.path = path;
         }
 
         @Override
         public Boolean call() {
-            File f = path.call();
-            if (!f.exists())
+            File f = this.path.call();
+            if (!f.exists()) {
                 f.mkdirs();
+            }
             return true;
         }
     }
@@ -780,17 +837,17 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     private void createExecTasks() {
         // In gradle 4.2 or newer, workingDir be resolved immediately. So set workingDir in afterEvaluate.
         {
-            final JavaExec exec = makeTask("runClient", JavaExec.class);
-            project.afterEvaluate(new Action<Project>() {
+            final JavaExec exec = this.makeTask("runClient", JavaExec.class);
+            this.project.afterEvaluate(new Action<Project>() {
                 @Override
                 public void execute(Project project) {
-                    exec.workingDir(delayedFile("{RUN_DIR}"));
+                    exec.workingDir(UserBasePlugin.this.delayedFile("{RUN_DIR}"));
                 }
             });
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
+            exec.doFirst(new MakeDirExist(this.delayedFile("{RUN_DIR}")));
             exec.setMain(GRADLE_START_CLIENT);
             //exec.jvmArgs("-Xincgc", "-Xmx1024M", "-Xms1024M", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getClientRunArgs());
+            exec.args(this.getClientRunArgs());
             exec.setStandardOutput(System.out);
             exec.setErrorOutput(System.err);
 
@@ -801,17 +858,17 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
 
         {
-            final JavaExec exec = makeTask("runServer", JavaExec.class);
-            project.afterEvaluate(new Action<Project>() {
+            final JavaExec exec = this.makeTask("runServer", JavaExec.class);
+            this.project.afterEvaluate(new Action<Project>() {
                 @Override
                 public void execute(Project project) {
-                    exec.workingDir(delayedFile("{RUN_DIR}"));
+                    exec.workingDir(UserBasePlugin.this.delayedFile("{RUN_DIR}"));
                 }
             });
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
+            exec.doFirst(new MakeDirExist(this.delayedFile("{RUN_DIR}")));
             exec.setMain(GRADLE_START_SERVER);
             exec.jvmArgs("-Xincgc", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getServerRunArgs());
+            exec.args(this.getServerRunArgs());
             exec.setStandardOutput(System.out);
             exec.setStandardInput(System.in);
             exec.setErrorOutput(System.err);
@@ -824,29 +881,29 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         {
 
-            final JavaExec exec = makeTask("debugClient", JavaExec.class);
-            project.afterEvaluate(new Action<Project>() {
+            final JavaExec exec = this.makeTask("debugClient", JavaExec.class);
+            this.project.afterEvaluate(new Action<Project>() {
                 @Override
                 public void execute(final Project project) {
-                    exec.workingDir(delayedFile("{RUN_DIR}"));
+                    exec.workingDir(UserBasePlugin.this.delayedFile("{RUN_DIR}"));
                 }
             });
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
+            exec.doFirst(new MakeDirExist(this.delayedFile("{RUN_DIR}")));
             exec.doFirst(new Action() {
                 @Override
                 public void execute(Object o) {
-                    project.getLogger().error("");
-                    project.getLogger().error("THIS TASK WILL BE DEP RECATED SOON!");
-                    project.getLogger().error("Instead use the runClient task, with the --debug-jvm option");
-                    if (!project.getGradle().getGradleVersion().equals("1.12")) {
-                        project.getLogger().error("You may have to update to Gradle 1.12");
+                    UserBasePlugin.this.project.getLogger().error("");
+                    UserBasePlugin.this.project.getLogger().error("THIS TASK WILL BE DEP RECATED SOON!");
+                    UserBasePlugin.this.project.getLogger().error("Instead use the runClient task, with the --debug-jvm option");
+                    if (!UserBasePlugin.this.project.getGradle().getGradleVersion().equals("1.12")) {
+                        UserBasePlugin.this.project.getLogger().error("You may have to update to Gradle 1.12");
                     }
-                    project.getLogger().error("");
+                    UserBasePlugin.this.project.getLogger().error("");
                 }
             });
             exec.setMain(GRADLE_START_CLIENT);
             exec.jvmArgs("-Xincgc", "-Xmx1024M", "-Xms1024M", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getClientRunArgs());
+            exec.args(this.getClientRunArgs());
             exec.setStandardOutput(System.out);
             exec.setErrorOutput(System.err);
             exec.setDebug(true);
@@ -858,29 +915,29 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
 
         {
-            final JavaExec exec = makeTask("debugServer", JavaExec.class);
-            project.afterEvaluate(new Action<Project>() {
+            final JavaExec exec = this.makeTask("debugServer", JavaExec.class);
+            this.project.afterEvaluate(new Action<Project>() {
                 @Override
                 public void execute(final Project project) {
-                    exec.workingDir(delayedFile("{RUN_DIR}"));
+                    exec.workingDir(UserBasePlugin.this.delayedFile("{RUN_DIR}"));
                 }
             });
-            exec.doFirst(new MakeDirExist(delayedFile("{RUN_DIR}")));
+            exec.doFirst(new MakeDirExist(this.delayedFile("{RUN_DIR}")));
             exec.doFirst(new Action() {
                 @Override
                 public void execute(Object o) {
-                    project.getLogger().error("");
-                    project.getLogger().error("THIS TASK WILL BE DEPRECATED SOON!");
-                    project.getLogger().error("Instead use the runServer task, with the --debug-jvm option");
-                    if (!project.getGradle().getGradleVersion().equals("1.12")) {
-                        project.getLogger().error("You may have to update to Gradle 1.12");
+                    UserBasePlugin.this.project.getLogger().error("");
+                    UserBasePlugin.this.project.getLogger().error("THIS TASK WILL BE DEPRECATED SOON!");
+                    UserBasePlugin.this.project.getLogger().error("Instead use the runServer task, with the --debug-jvm option");
+                    if (!UserBasePlugin.this.project.getGradle().getGradleVersion().equals("1.12")) {
+                        UserBasePlugin.this.project.getLogger().error("You may have to update to Gradle 1.12");
                     }
-                    project.getLogger().error("");
+                    UserBasePlugin.this.project.getLogger().error("");
                 }
             });
             exec.setMain(GRADLE_START_SERVER);
             exec.jvmArgs("-Xincgc", "-Dfml.ignoreInvalidMinecraftCertificates=true");
-            exec.args(getServerRunArgs());
+            exec.args(this.getServerRunArgs());
             exec.setStandardOutput(System.out);
             exec.setStandardInput(System.in);
             exec.setErrorOutput(System.err);
@@ -894,7 +951,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     }
 
     private final void createSourceCopyTasks() {
-        JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
+        JavaPluginConvention javaConv = (JavaPluginConvention) this.project.getConvention().getPlugins().get("java");
         SourceSet main = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 
         // do the special source moving...
@@ -902,41 +959,41 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         // main
         {
-            DelayedFile dir = delayedFile(SOURCES_DIR + "/java");
+            DelayedFile dir = this.delayedFile(SOURCES_DIR + "/java");
 
-            task = makeTask("sourceMainJava", SourceCopyTask.class);
+            task = this.makeTask("sourceMainJava", SourceCopyTask.class);
             task.setSource(main.getJava());
             task.setOutput(dir);
 
-            JavaCompile compile = (JavaCompile) project.getTasks().getByName(main.getCompileJavaTaskName());
+            JavaCompile compile = (JavaCompile) this.project.getTasks().getByName(main.getCompileJavaTaskName());
             compile.dependsOn("sourceMainJava");
             compile.setSource(dir);
         }
 
         // scala!!!
-        if (project.getPlugins().hasPlugin("scala")) {
+        if (this.project.getPlugins().hasPlugin("scala")) {
             ScalaSourceSet set = (ScalaSourceSet) new DslObject(main).getConvention().getPlugins().get("scala");
-            DelayedFile dir = delayedFile(SOURCES_DIR + "/scala");
+            DelayedFile dir = this.delayedFile(SOURCES_DIR + "/scala");
 
-            task = makeTask("sourceMainScala", SourceCopyTask.class);
+            task = this.makeTask("sourceMainScala", SourceCopyTask.class);
             task.setSource(set.getScala());
             task.setOutput(dir);
 
-            ScalaCompile compile = (ScalaCompile) project.getTasks().getByName(main.getCompileTaskName("scala"));
+            ScalaCompile compile = (ScalaCompile) this.project.getTasks().getByName(main.getCompileTaskName("scala"));
             compile.dependsOn("sourceMainScala");
             compile.setSource(dir);
         }
 
         // groovy!!!
-        if (project.getPlugins().hasPlugin("groovy")) {
+        if (this.project.getPlugins().hasPlugin("groovy")) {
             GroovySourceSet set = (GroovySourceSet) new DslObject(main).getConvention().getPlugins().get("groovy");
-            DelayedFile dir = delayedFile(SOURCES_DIR + "/groovy");
+            DelayedFile dir = this.delayedFile(SOURCES_DIR + "/groovy");
 
-            task = makeTask("sourceMainGroovy", SourceCopyTask.class);
+            task = this.makeTask("sourceMainGroovy", SourceCopyTask.class);
             task.setSource(set.getGroovy());
             task.setOutput(dir);
 
-            GroovyCompile compile = (GroovyCompile) project.getTasks().getByName(main.getCompileTaskName("groovy"));
+            GroovyCompile compile = (GroovyCompile) this.project.getTasks().getByName(main.getCompileTaskName("groovy"));
             compile.dependsOn("sourceMainGroovy");
             compile.setSource(dir);
         }
@@ -945,54 +1002,56 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public final void afterEvaluate() {
-        String mcversion = getMcVersion(getExtension());
-        if (!getExtension().mappingsSet() && mcversion.startsWith("1.8")) {
-            getExtension().setMappings("snapshot_20141001"); //Default snapshots for 1.8
+        String mcversion = this.getMcVersion(this.getExtension());
+        if (!this.getExtension().mappingsSet() && mcversion.startsWith("1.8")) {
+            this.getExtension().setMappings("snapshot_20141001"); //Default snapshots for 1.8
         }
 
         super.afterEvaluate();
 
         // version checks
         {
-            String version = getMcVersion(getExtension());
-            if (hasApiVersion())
-                version = getApiVersion(getExtension());
+            String version = this.getMcVersion(this.getExtension());
+            if (this.hasApiVersion()) {
+                version = this.getApiVersion(this.getExtension());
+            }
 
-            doVersionChecks(version);
+            this.doVersionChecks(version);
         }
 
         // ensure plugin application sequence.. groovy or scala or wtvr first, then the forge/fml/liteloader plugins
-        if (!hasScalaBefore && project.getPlugins().hasPlugin("scala"))
-            throw new RuntimeException(delayedString("You have applied the 'scala' plugin after '{API_NAME}', you must apply it before.").call());
-        if (!hasGroovyBefore && project.getPlugins().hasPlugin("groovy"))
-            throw new RuntimeException(delayedString("You have applied the 'groovy' plugin after '{API_NAME}', you must apply it before.").call());
+        if (!this.hasScalaBefore && this.project.getPlugins().hasPlugin("scala"))
+            throw new RuntimeException(this.delayedString("You have applied the 'scala' plugin after '{API_NAME}', you must apply it before.").call());
+        if (!this.hasGroovyBefore && this.project.getPlugins().hasPlugin("groovy"))
+            throw new RuntimeException(this.delayedString("You have applied the 'groovy' plugin after '{API_NAME}', you must apply it before.").call());
 
-        project.getDependencies().add(CONFIG_USERDEV, delayedString(getUserDev()).call() + ":userdev");
+        this.project.getDependencies().add(CONFIG_USERDEV, this.delayedString(this.getUserDev()).call() + ":userdev");
 
         // grab the json && read dependencies
-        if (getDevJson().call().exists()) {
-            readAndApplyJson(getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, project.getLogger());
+        if (this.getDevJson().call().exists()) {
+            this.readAndApplyJson(this.getDevJson().call(), CONFIG_DEPS, CONFIG_NATIVES, this.project.getLogger());
         }
 
-        delayedTaskConfig();
+        this.delayedTaskConfig();
 
         // add MC repo.
-        final String repoDir = delayedDirtyFile("this", "doesnt", "matter").call().getParentFile().getAbsolutePath();
-        project.allprojects(new Action<Project>() {
+        final String repoDir = this.delayedDirtyFile("this", "doesnt", "matter").call().getParentFile().getAbsolutePath();
+        this.project.allprojects(new Action<Project>() {
+            @Override
             public void execute(Project proj) {
-                addFlatRepo(proj, getApiName() + "FlatRepo", repoDir);
+                UserBasePlugin.this.addFlatRepo(proj, UserBasePlugin.this.getApiName() + "FlatRepo", repoDir);
                 proj.getLogger().debug("Adding repo to " + proj.getPath() + " >> " + repoDir);
             }
         });
 
         // check for decompilation status.. has decompiled or not etc
-        final File decompFile = delayedDirtyFile(getSrcDepName(), CLASSIFIER_SOURCES, "jar").call();
+        final File decompFile = this.delayedDirtyFile(this.getSrcDepName(), CLASSIFIER_SOURCES, "jar").call();
         if (decompFile.exists()) {
-            getExtension().setDecomp();
+            this.getExtension().setDecomp();
         }
 
         // post decompile status thing.
-        configurePostDecomp(getExtension().isDecomp(), false);
+        this.configurePostDecomp(this.getExtension().isDecomp(), false);
 
         {
             // stop getting empty dirs
@@ -1004,8 +1063,8 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
                 }
             };
 
-            project.getTasks().withType(Jar.class, act);
-            project.getTasks().withType(Zip.class, act);
+            this.project.getTasks().withType(Jar.class, act);
+            this.project.getTasks().withType(Zip.class, act);
         }
     }
 
@@ -1016,28 +1075,28 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     protected void delayedTaskConfig() {
         // add extraSRG lines to reobf task
         {
-            ReobfTask task = ((ReobfTask) project.getTasks().getByName("reobf"));
-            task.reobf(project.getTasks().getByName("jar"), new Action<ArtifactSpec>() {
+            ReobfTask task = ((ReobfTask) this.project.getTasks().getByName("reobf"));
+            task.reobf(this.project.getTasks().getByName("jar"), new Action<ArtifactSpec>() {
                 @Override
                 public void execute(ArtifactSpec arg0) {
-                    JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
+                    JavaPluginConvention javaConv = (JavaPluginConvention) UserBasePlugin.this.project.getConvention().getPlugins().get("java");
                     arg0.setClasspath(javaConv.getSourceSets().getByName("main").getCompileClasspath());
                 }
 
             });
-            task.setExtraSrg(getExtension().getSrgExtra());
+            task.setExtraSrg(this.getExtension().getSrgExtra());
         }
 
         // configure output of recompile task
         {
-            JavaCompile compile = (JavaCompile) project.getTasks().getByName("recompMinecraft");
-            compile.setDestinationDir(delayedFile(RECOMP_CLS_DIR).call());
+            JavaCompile compile = (JavaCompile) this.project.getTasks().getByName("recompMinecraft");
+            compile.setDestinationDir(this.delayedFile(RECOMP_CLS_DIR).call());
         }
 
         // configure output of repackage task.
         {
-            Jar repackageTask = (Jar) project.getTasks().getByName("repackMinecraft");
-            final DelayedFile recomp = delayedDirtyFile(getSrcDepName(), null, "jar");
+            Jar repackageTask = (Jar) this.project.getTasks().getByName("repackMinecraft");
+            final DelayedFile recomp = this.delayedDirtyFile(this.getSrcDepName(), null, "jar");
 
             //done in the delayed configuration.
             File out = recomp.call();
@@ -1047,11 +1106,11 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
 
         {
             // because different versions of authlib
-            CreateStartTask task = (CreateStartTask) project.getTasks().getByName("makeStart");
+            CreateStartTask task = (CreateStartTask) this.project.getTasks().getByName("makeStart");
 
-            if (getMcVersion(getExtension()).startsWith("1.7")) // MC 1.7.X
+            if (this.getMcVersion(this.getExtension()).startsWith("1.7")) // MC 1.7.X
             {
-                if (getMcVersion(getExtension()).endsWith("10")) // MC 1.7.10
+                if (this.getMcVersion(this.getExtension()).endsWith("10")) // MC 1.7.10
                 {
                     task.addReplacement("//@@USERTYPE@@", "argMap.put(\"userType\", auth.getUserType().getName());");
                     task.addReplacement("//@@USERPROP@@", "argMap.put(\"userProperties\", new GsonBuilder().registerTypeAdapter(com.mojang.authlib.properties.PropertyMap.class, new net.minecraftforge.gradle.OldPropertyMapSerializer()).create().toJson(auth.getUserProperties()));");
@@ -1067,40 +1126,40 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
 
         // Add the mod and stuff to the classpath of the exec tasks.
-        final Jar jarTask = (Jar) project.getTasks().getByName("jar");
+        final Jar jarTask = (Jar) this.project.getTasks().getByName("jar");
 
-        JavaExec exec = (JavaExec) project.getTasks().getByName("runClient");
+        JavaExec exec = (JavaExec) this.project.getTasks().getByName("runClient");
         {
-            exec.classpath(project.getConfigurations().getByName("runtime"));
+            exec.classpath(this.project.getConfigurations().getByName("runtime"));
             exec.classpath(jarTask.getArchivePath());
             exec.dependsOn(jarTask);
         }
 
-        exec = (JavaExec) project.getTasks().getByName("runServer");
+        exec = (JavaExec) this.project.getTasks().getByName("runServer");
         {
-            exec.classpath(project.getConfigurations().getByName("runtime"));
+            exec.classpath(this.project.getConfigurations().getByName("runtime"));
             exec.classpath(jarTask.getArchivePath());
             exec.dependsOn(jarTask);
         }
 
-        exec = (JavaExec) project.getTasks().getByName("debugClient");
+        exec = (JavaExec) this.project.getTasks().getByName("debugClient");
         {
-            exec.classpath(project.getConfigurations().getByName("runtime"));
+            exec.classpath(this.project.getConfigurations().getByName("runtime"));
             exec.classpath(jarTask.getArchivePath());
             exec.dependsOn(jarTask);
         }
 
-        exec = (JavaExec) project.getTasks().getByName("debugServer");
+        exec = (JavaExec) this.project.getTasks().getByName("debugServer");
         {
-            exec.classpath(project.getConfigurations().getByName("runtime"));
+            exec.classpath(this.project.getConfigurations().getByName("runtime"));
             exec.classpath(jarTask.getArchivePath());
             exec.dependsOn(jarTask);
         }
 
         // configure source replacement.
-        for (SourceCopyTask t : project.getTasks().withType(SourceCopyTask.class)) {
-            t.replace(getExtension().getReplacements());
-            t.include(getExtension().getIncludes());
+        for (SourceCopyTask t : this.project.getTasks().withType(SourceCopyTask.class)) {
+            t.replace(this.getExtension().getReplacements());
+            t.include(this.getExtension().getIncludes());
         }
     }
 
@@ -1112,35 +1171,36 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     protected void configurePostDecomp(boolean decomp, boolean remove) {
         if (decomp) {
-            ((ReobfTask) project.getTasks().getByName("reobf")).setDeobfFile(((ProcessJarTask) project.getTasks().getByName("deobfuscateJar")).getDelayedOutput());
-            ((ReobfTask) project.getTasks().getByName("reobf")).setRecompFile(delayedDirtyFile(getSrcDepName(), null, "jar"));
+            ((ReobfTask) this.project.getTasks().getByName("reobf")).setDeobfFile(((ProcessJarTask) this.project.getTasks().getByName("deobfuscateJar")).getDelayedOutput());
+            ((ReobfTask) this.project.getTasks().getByName("reobf")).setRecompFile(this.delayedDirtyFile(this.getSrcDepName(), null, "jar"));
         } else {
-            (project.getTasks().getByName("compileJava")).dependsOn("deobfBinJar");
-            (project.getTasks().getByName("compileApiJava")).dependsOn("deobfBinJar");
+            (this.project.getTasks().getByName("compileJava")).dependsOn("deobfBinJar");
+            (this.project.getTasks().getByName("compileApiJava")).dependsOn("deobfBinJar");
         }
 
-        setMinecraftDeps(decomp, remove);
+        this.setMinecraftDeps(decomp, remove);
 
         if (decomp && remove) {
-            (project.getTasks().getByName("deobfBinJar")).onlyIf(Constants.CALL_FALSE);
+            (this.project.getTasks().getByName("deobfBinJar")).onlyIf(Constants.CALL_FALSE);
         }
     }
 
     protected void setMinecraftDeps(boolean decomp, boolean remove) {
-        String version = getMcVersion(getExtension());
-        if (hasApiVersion())
-            version = getApiVersion(getExtension());
+        String version = this.getMcVersion(this.getExtension());
+        if (this.hasApiVersion()) {
+            version = this.getApiVersion(this.getExtension());
+        }
 
 
         if (decomp) {
-            project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getSrcDepName(), "version", version));
+            this.project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", this.getSrcDepName(), "version", version));
             if (remove) {
-                project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getBinDepName()));
+                this.project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", this.getBinDepName()));
             }
         } else {
-            project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", getBinDepName(), "version", version));
+            this.project.getDependencies().add(CONFIG_MC, ImmutableMap.of("name", this.getBinDepName(), "version", version));
             if (remove) {
-                project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", getSrcDepName()));
+                this.project.getConfigurations().getByName(CONFIG_MC).exclude(ImmutableMap.of("module", this.getSrcDepName()));
             }
         }
     }
@@ -1167,7 +1227,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      * @return delayed file
      */
     protected DelayedFile delayedDirtyFile(final String name, final String classifier, final String ext) {
-        return delayedDirtyFile(name, classifier, ext, true);
+        return this.delayedDirtyFile(name, classifier, ext, true);
     }
 
     /**
@@ -1181,36 +1241,41 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     @SuppressWarnings("serial")
     protected DelayedFile delayedDirtyFile(final String name, final String classifier, final String ext, final boolean usesMappings) {
-        return new DelayedFile(project, "", this) {
+        return new DelayedFile(this.project, "", this) {
             @Override
             public File resolveDelayed() {
-                ProcessJarTask decompDeobf = (ProcessJarTask) project.getTasks().getByName("deobfuscateJar");
-                pattern = (decompDeobf.isClean() ? "{API_CACHE_DIR}/" + (usesMappings ? MAPPING_APPENDAGE : "") : DIRTY_DIR) + "/";
+                ProcessJarTask decompDeobf = (ProcessJarTask) this.project.getTasks().getByName("deobfuscateJar");
+                this.pattern = (decompDeobf.isClean() ? "{API_CACHE_DIR}/" + (usesMappings ? MAPPING_APPENDAGE : "") : DIRTY_DIR) + "/";
 
-                if (!Strings.isNullOrEmpty(name))
-                    pattern += name;
-                else
-                    pattern += "{API_NAME}";
+                if (!Strings.isNullOrEmpty(name)) {
+                    this.pattern += name;
+                } else {
+                    this.pattern += "{API_NAME}";
+                }
 
-                pattern += "-" + (hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}");
+                this.pattern += "-" + (UserBasePlugin.this.hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}");
 
-                if (!Strings.isNullOrEmpty(classifier))
-                    pattern += "-" + classifier;
-                if (!Strings.isNullOrEmpty(ext))
-                    pattern += "." + ext;
+                if (!Strings.isNullOrEmpty(classifier)) {
+                    this.pattern += "-" + classifier;
+                }
+                if (!Strings.isNullOrEmpty(ext)) {
+                    this.pattern += "." + ext;
+                }
 
                 return super.resolveDelayed();
             }
         };
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     protected Class<T> getExtensionClass() {
         return (Class<T>) UserExtension.class;
     }
 
     private void addGitIgnore() {
-        File git = new File(project.getBuildDir(), ".gitignore");
+        // TODO Re-evaluate some of our life choices
+        File git = new File(this.project.getBuildDir(), ".gitignore");
         if (!git.exists()) {
             git.getParentFile().mkdir();
             try {
