@@ -36,7 +36,6 @@ import net.minecraftforge.gradle.tasks.ProcessJarTask;
 import net.minecraftforge.gradle.tasks.ProcessSrcJarTask;
 import net.minecraftforge.gradle.tasks.RemapSourcesTask;
 import net.minecraftforge.gradle.tasks.user.ApplyBinPatchesTask;
-import net.minecraftforge.gradle.tasks.user.reobf.ReobfTask;
 import net.minecraftforge.gradle.user.UserBasePlugin;
 import net.minecraftforge.gradle.user.UserConstants;
 
@@ -148,13 +147,13 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
 
         // Setting custom archive classifiers for some reason causes Gradle to clean
         // build output right before reobf task is executed. This should help prevent it
-        ReobfTask reobf = (ReobfTask) this.project.getTasks().getByName("reobf");
-        reobf.getInputs().dir(this.project.getBuildDir());
-        reobf.getOutputs().dir(this.project.getBuildDir());
-
         Task test = this.project.getTasks().getByName("test");
         test.getInputs().dir(this.project.getBuildDir());
         test.getOutputs().dir(this.project.getBuildDir());
+
+        Task reobf = this.project.getTasks().getByName("reobf");
+        reobf.getInputs().dir(this.project.getBuildDir());
+        reobf.getOutputs().dir(this.project.getBuildDir());
     }
 
     @Override
@@ -388,6 +387,7 @@ public abstract class UserPatchBasePlugin extends UserBasePlugin<UserPatchExtens
         public ClearBuildTask() {
             super();
             this.delete(this.getProject().file(this.getProject().getBuildDir().getName() + "/classes/main"));
+            this.delete(this.getProject().file(this.getProject().getBuildDir().getName() + "/classes/java/main"));
         }
     }
 
