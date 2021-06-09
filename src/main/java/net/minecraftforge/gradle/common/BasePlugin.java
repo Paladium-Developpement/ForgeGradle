@@ -353,7 +353,12 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
 
     public static Project getProject(File buildFile, Project parent) {
         ProjectBuilder builder = ProjectBuilder.builder();
-        if (buildFile != null) {
+        if (buildFile != null && parent != null) {
+            String name = buildFile.getParentFile().getAbsolutePath().replace(parent.getBuildFile().getParentFile().getAbsolutePath() + File.separator,"" );
+            name = name.replace(File.separator, ":");
+            builder = builder.withProjectDir(buildFile.getParentFile())
+                    .withName(name);
+        } else if (buildFile != null) {
             builder = builder.withProjectDir(buildFile.getParentFile())
                     .withName(buildFile.getParentFile().getName());
         } else {

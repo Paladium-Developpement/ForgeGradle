@@ -16,6 +16,7 @@
 // Modified by LexManos 10/23/2013 to remove FileSystemMirroringFileTree
 package net.minecraftforge.gradle;
 
+import com.google.common.io.Files;
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.GradleException;
 import org.gradle.api.InvalidUserDataException;
@@ -94,7 +95,12 @@ public class ZipFileTree implements MinimalFileTree {
         visit(fileVisitor);
     }
 
+    static File tmpFolder = Files.createTempDir();
+    static {
+        tmpFolder.deleteOnExit();
+    }
     private class DetailsImpl implements FileVisitDetails {
+
         private final ZipEntry entry;
         private final ZipFile zip;
         private final AtomicBoolean stopFlag;
@@ -120,8 +126,9 @@ public class ZipFileTree implements MinimalFileTree {
          */
         public File getFile() {
             if (file == null) {
-                file = new File(entry.getName());
-                //copyTo(file);
+                // juanmuscaria - I guess gradle started caring about it now, let's give a valid file then.
+                file = new File(tmpFolder, entry.getName());
+                copyTo(file);
             }
             return file;
         }

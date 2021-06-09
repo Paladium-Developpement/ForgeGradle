@@ -120,110 +120,110 @@ public class ChangelogTask extends DefaultTask {
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> getBuildInfo() {
         String data = null;
-        try {
-            boolean versioned = false;
-            data = read("/api/python?tree=allBuilds[result,number,actions[text],changeSet[items[author[fullName],comment]]]");//&pretty=true");
-            data = data.replace("\"result\":None", "\"result\":\"\"");
-            data = cleanJson(data, "None"); //This kills Gson for some reason
-            data = cleanJson(data, "{}"); //Empty entries, just for sanities sake
-
-            List<Map<String, Object>> json = (List<Map<String, Object>>) new Gson().fromJson(data, Map.class).get("allBuilds");
-            Collections.sort(json, new Comparator<Map<String, Object>>() {
-                @Override
-                public int compare(Map<String, Object> o1, Map<String, Object> o2) {
-                    return (int) ((Double) o1.get("number") - (Double) o2.get("number"));
-                }
-
-            });
-
-            List<Entry<String, String>> items = new ArrayList<Entry<String, String>>();
-            Iterator<Map<String, Object>> bitr = json.iterator();
-            while (bitr.hasNext()) {
-                Map<String, Object> build = bitr.next();
-
-                List<Map<String, String>> actions = (List<Map<String, String>>) build.get("actions");
-                Iterator<Map<String, String>> itr = actions.iterator();
-                while (itr.hasNext()) {
-                    Map<String, String> map = itr.next();
-                    if (!map.containsKey("text") || map.get("text").contains("http")) {
-                        itr.remove();
-                    }
-                }
-
-                if (actions.size() == 0) {
-                    build.put("version", versioned ? ((Double) build.get("number")).intValue() : getProject().getVersion());
-                    versioned = true;
-                } else {
-                    build.put("version", actions.get(0).get("text"));
-                }
-
-                for (Map<String, Object> e : (List<Map<String, Object>>) ((Map<String, Object>) build.get("changeSet")).get("items")) {
-                    items.add(new MapEntry(((Map<String, String>) e.get("author")).get("fullName"), e.get("comment")));
-                }
-                build.put("items", items);
-
-                if (build.get("result").equals("SUCCESS")) {
-                    if (items.size() == 0) bitr.remove();
-                    items = new ArrayList<Entry<String, String>>();
-                } else {
-                    bitr.remove();
-                }
-
-                build.remove("result");
-                build.remove("changeSet");
-                build.remove("actions");
-            }
-            //prettyPrint(json);
-            Collections.sort(json, new Comparator<Map<String, Object>>() {
-                @Override
-                public int compare(Map<String, Object> o1, Map<String, Object> o2) {
-                    return (int) ((Double) o2.get("number") - (Double) o1.get("number"));
-                }
-
-            });
-            return json;
-        } catch (Exception e) {
-            e.printStackTrace();
-            getLogger().lifecycle(data);
-        }
+//        try {
+//            boolean versioned = false;
+//            data = read("/api/python?tree=allBuilds[result,number,actions[text],changeSet[items[author[fullName],comment]]]");//&pretty=true");
+//            data = data.replace("\"result\":None", "\"result\":\"\"");
+//            data = cleanJson(data, "None"); //This kills Gson for some reason
+//            data = cleanJson(data, "{}"); //Empty entries, just for sanities sake
+//
+//            List<Map<String, Object>> json = (List<Map<String, Object>>) new Gson().fromJson(data, Map.class).get("allBuilds");
+//            Collections.sort(json, new Comparator<Map<String, Object>>() {
+//                @Override
+//                public int compare(Map<String, Object> o1, Map<String, Object> o2) {
+//                    return (int) ((Double) o1.get("number") - (Double) o2.get("number"));
+//                }
+//
+//            });
+//
+//            List<Entry<String, String>> items = new ArrayList<Entry<String, String>>();
+//            Iterator<Map<String, Object>> bitr = json.iterator();
+//            while (bitr.hasNext()) {
+//                Map<String, Object> build = bitr.next();
+//
+//                List<Map<String, String>> actions = (List<Map<String, String>>) build.get("actions");
+//                Iterator<Map<String, String>> itr = actions.iterator();
+//                while (itr.hasNext()) {
+//                    Map<String, String> map = itr.next();
+//                    if (!map.containsKey("text") || map.get("text").contains("http")) {
+//                        itr.remove();
+//                    }
+//                }
+//
+//                if (actions.size() == 0) {
+//                    build.put("version", versioned ? ((Double) build.get("number")).intValue() : getProject().getVersion());
+//                    versioned = true;
+//                } else {
+//                    build.put("version", actions.get(0).get("text"));
+//                }
+//
+//                for (Map<String, Object> e : (List<Map<String, Object>>) ((Map<String, Object>) build.get("changeSet")).get("items")) {
+//                    items.add(new MapEntry(((Map<String, String>) e.get("author")).get("fullName"), e.get("comment")));
+//                }
+//                build.put("items", items);
+//
+//                if (build.get("result").equals("SUCCESS")) {
+//                    if (items.size() == 0) bitr.remove();
+//                    items = new ArrayList<Entry<String, String>>();
+//                } else {
+//                    bitr.remove();
+//                }
+//
+//                build.remove("result");
+//                build.remove("changeSet");
+//                build.remove("actions");
+//            }
+//            //prettyPrint(json);
+//            Collections.sort(json, new Comparator<Map<String, Object>>() {
+//                @Override
+//                public int compare(Map<String, Object> o1, Map<String, Object> o2) {
+//                    return (int) ((Double) o2.get("number") - (Double) o1.get("number"));
+//                }
+//
+//            });
+//            return json;
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            getLogger().lifecycle(data);
+//        }
         return new ArrayList<Map<String, Object>>();
     }
 
     @SuppressWarnings("unchecked")
     private void getLatestBuild(List<Map<String, Object>> builds) {
         String data = null;
-        try {
-            Object ver = "";
-            if (builds.size() > 0) {
-                ver = builds.get(0).get("number");
-            }
-            boolean versioned = false;
-            data = read("/lastBuild/api/python?tree=number,changeSet[items[author[fullName],comment]]");//&pretty=true");
-            data = cleanJson(data, "None"); //This kills Gson for some reason
-            data = cleanJson(data, "{}"); //Empty entries, just for sanities sake
-
-            Map<String, Object> build = (Map<String, Object>) new Gson().fromJson(data, Map.class);
-            if (build.get("number").equals(ver)) {
-                return;
-            }
-            build.put("version", versioned ? "Build " + ((Double) build.get("number")).intValue() : getProject().getVersion());
-
-            List<Entry<String, String>> items = new ArrayList<Entry<String, String>>();
-            for (Map<String, Object> e : (List<Map<String, Object>>) ((Map<String, Object>) build.get("changeSet")).get("items")) {
-                items.add(new MapEntry(((Map<String, String>) e.get("author")).get("fullName"), e.get("comment")));
-            }
-            build.put("items", items);
-
-            build.remove("result");
-            build.remove("changeSet");
-            build.remove("actions");
-
-            builds.add(0, build);
-            //prettyPrint(build);
-        } catch (Exception e) {
-            e.printStackTrace();
-            getLogger().lifecycle(data);
-        }
+//        try {
+//            Object ver = "";
+//            if (builds.size() > 0) {
+//                ver = builds.get(0).get("number");
+//            }
+//            boolean versioned = false;
+//            data = read("/lastBuild/api/python?tree=number,changeSet[items[author[fullName],comment]]");//&pretty=true");
+//            data = cleanJson(data, "None"); //This kills Gson for some reason
+//            data = cleanJson(data, "{}"); //Empty entries, just for sanities sake
+//
+//            Map<String, Object> build = (Map<String, Object>) new Gson().fromJson(data, Map.class);
+//            if (build.get("number").equals(ver)) {
+//                return;
+//            }
+//            build.put("version", versioned ? "Build " + ((Double) build.get("number")).intValue() : getProject().getVersion());
+//
+//            List<Entry<String, String>> items = new ArrayList<Entry<String, String>>();
+//            for (Map<String, Object> e : (List<Map<String, Object>>) ((Map<String, Object>) build.get("changeSet")).get("items")) {
+//                items.add(new MapEntry(((Map<String, String>) e.get("author")).get("fullName"), e.get("comment")));
+//            }
+//            build.put("items", items);
+//
+//            build.remove("result");
+//            build.remove("changeSet");
+//            build.remove("actions");
+//
+//            builds.add(0, build);
+//            //prettyPrint(build);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            getLogger().lifecycle(data);
+//        }
     }
 
     public String getServerRoot() {

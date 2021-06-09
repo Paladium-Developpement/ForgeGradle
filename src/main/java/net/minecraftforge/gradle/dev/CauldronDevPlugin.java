@@ -60,7 +60,7 @@ public class CauldronDevPlugin extends DevBasePlugin {
         createPackageTasks();
 
         // the master setup task.
-        Task task = makeTask("setupCauldron", DefaultTask.class);
+        Task task = makeTask("setupCrucible", DefaultTask.class);
         task.dependsOn("extractCauldronSources", "generateProjects", "eclipse", "copyAssets");
         task.setGroup("Cauldron");
 
@@ -115,7 +115,7 @@ public class CauldronDevPlugin extends DevBasePlugin {
             task4.addStage("bukkit", null, delayedFile(BUKKIT_SOURCES));
             task4.setDoesCache(false);
             task4.setMaxFuzz(2);
-            task4.dependsOn("decompile", "compressDeobfData", "createVersionPropertiesFML");
+            task4.dependsOn("decompile", "compressDeobfData");
         }
 
         RemapSourcesTask task6 = makeTask("remapCleanJar", RemapSourcesTask.class);
@@ -221,20 +221,19 @@ public class CauldronDevPlugin extends DevBasePlugin {
         }
     }
 
-    @SuppressWarnings("serial")
     private void createProjectTasks() {
-        FMLVersionPropTask sub = makeTask("createVersionPropertiesFML", FMLVersionPropTask.class);
-        {
-            //sub.setTasks("createVersionProperties");
-            //sub.setBuildFile(delayedFile("{FML_DIR}/build.gradle"));
-            sub.setVersion(new Closure<String>(project) {
-                @Override
-                public String call(Object... args) {
-                    return FmlDevPlugin.getVersionFromGit(project, new File(delayedString("{FML_DIR}").call()));
-                }
-            });
-            sub.setOutputFile(delayedFile(FML_VERSIONF));
-        }
+//        FMLVersionPropTask sub = makeTask("createVersionPropertiesFML", FMLVersionPropTask.class);
+//        {
+//            //sub.setTasks("createVersionProperties");
+//            //sub.setBuildFile(delayedFile("{FML_DIR}/build.gradle"));
+//            sub.setVersion(new Closure<String>(project) {
+//                @Override
+//                public String call(Object... args) {
+//                    return FmlDevPlugin.getVersionFromGit(project, new File(delayedString("{FML_DIR}").call()));
+//                }
+//            });
+//            sub.setOutputFile(delayedFile(FML_VERSIONF));
+//        }
 
         ExtractTask extract = makeTask("extractRes", ExtractTask.class);
         {
@@ -280,7 +279,7 @@ public class CauldronDevPlugin extends DevBasePlugin {
             task.setMappingChannel(delayedString("{MAPPING_CHANNEL}"));
             task.setMappingVersion(delayedString("{MAPPING_VERSION}"));
 
-            task.dependsOn("extractRes", "extractNatives", "createVersionPropertiesFML");
+            task.dependsOn("extractRes", "extractNatives");
         }
 
         makeTask("generateProjects").dependsOn("generateProjectClean", "generateProjectCauldron");
@@ -393,7 +392,7 @@ public class CauldronDevPlugin extends DevBasePlugin {
             obf.setBuildFile(delayedFile(ECLIPSE_CDN + "/build.gradle"));
             obf.setMethodsCsv(delayedFile(METHODS_CSV));
             obf.setFieldsCsv(delayedFile(FIELDS_CSV));
-            obf.dependsOn("genSrgs");
+            obf.dependsOn("genSrgs", ":eclipse:cauldron:jar");
         }
 
         GenBinaryPatches task3 = makeTask("genBinPatches", GenBinaryPatches.class);
@@ -418,7 +417,6 @@ public class CauldronDevPlugin extends DevBasePlugin {
             task4.setOutputFile(delayedFile(FORGE_VERSION_JAVA));
             task4.setReplacement(delayedString("{BUILD_NUM}"));
         }
-
         SubmoduleChangelogTask task5 = makeTask("fmlChangelog", SubmoduleChangelogTask.class);
         {
             task5.setSubmodule(delayedFile("fml"));
@@ -502,7 +500,7 @@ public class CauldronDevPlugin extends DevBasePlugin {
 
             uni.setDestinationDir(delayedFile("{BUILD_DIR}/distributions").call());
             //uni.dependsOn("genBinPatches", "createChangelog", "createVersionPropertiesFML", "generateVersionJson");
-            uni.dependsOn("genBinPatches", "createChangelog", "createVersionPropertiesFML");
+            uni.dependsOn("genBinPatches", "createChangelog");
         }
         project.getArtifacts().add("archives", uni);
 

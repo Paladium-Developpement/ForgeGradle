@@ -52,10 +52,10 @@ public class ObfuscateTask extends DefaultTask {
         AbstractTask jarTask = (AbstractTask) childProj.getTasks().getByName(subTask);
 
         // executing jar task
-        getLogger().debug("Executing child " + subTask + " task...");
-        executeTask(jarTask);
+        //getLogger().debug("Executing child " + subTask + " task...");
+        //executeTask(jarTask);
 
-        File inJar = (File) jarTask.property("archivePath");
+        File inJar = new File(childProj.getBuildDir(),"libs" + File.separator+"cauldron.jar");
 
         File srg = getSrg();
 
@@ -92,7 +92,6 @@ public class ObfuscateTask extends DefaultTask {
         for (Object dep : task.getTaskDependencies().getDependencies(task)) {
             executeTask((AbstractTask) dep);
         }
-
         if (!task.getState().getExecuted()) {
             getLogger().lifecycle(task.getPath());
             for (Action<? super Task> action : task.getActions()) {
