@@ -84,6 +84,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 
 import groovy.lang.Closure;
+import io.github.crucible.forgegradle.tasks.MakeTrueSources;
 import net.minecraftforge.gradle.common.BasePlugin;
 import net.minecraftforge.gradle.common.Constants;
 import net.minecraftforge.gradle.delayed.DelayedFile;
@@ -732,6 +733,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     private final void createPostDecompTasks() {
         DelayedFile decompOut = this.delayedDirtyFile(null, CLASSIFIER_DECOMPILED, "jar", false);
         DelayedFile remapped = this.delayedDirtyFile(this.getSrcDepName(), CLASSIFIER_SOURCES, "jar");
+        DelayedFile trueSourcesFile = this.delayedDirtyFile(this.getSrcDepName(), "sources", "jar");
         final DelayedFile recomp = this.delayedDirtyFile(this.getSrcDepName(), null, "jar");
         final DelayedFile recompSrc = this.delayedFile(RECOMP_SRC_DIR);
         final DelayedFile recompCls = this.delayedFile(RECOMP_CLS_DIR);
@@ -757,6 +759,18 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             remap.setDoesJavadocs(true);
             remap.dependsOn(decomp);
         }
+
+        // Create actual -sources file with PROPER GODDAMN JAVA FORMATTING I SWEAR THIS BLASTED
+        // OPENING-BRACKET-FROM-NEW-LINE-THING ALL OVER MC/FORGE SOURCES DID INVOKE MY ANGER
+        // WAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY TOO MANY TIMES IN THE PAST
+        MakeTrueSources trueSources = this.makeTask("makeTrueSources", MakeTrueSources.class);
+        {
+            trueSources.setInJar(remapped);
+            trueSources.setOutJar(trueSourcesFile);
+            trueSources.setAstyleConfig(this.delayedFile(ASTYLE_CFG));
+            remap.finalizedBy(trueSources);
+        }
+
 
         Spec onlyIfCheck = new Spec() {
             @Override

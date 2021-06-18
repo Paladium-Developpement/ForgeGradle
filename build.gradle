@@ -11,9 +11,9 @@ apply plugin: 'maven-publish'
 group = 'net.minecraftforge.gradle'
 
 if (project.hasProperty("push_release")) {
-    version = '1.2-1.3.3'
+    version = '1.2-1.4.0'
 } else {
-    version = '1.2-1.3.3-SNAPSHOT'
+    version = '1.2-1.4.0-SNAPSHOT'
 }
 
 archivesBaseName = 'ForgeGradle'

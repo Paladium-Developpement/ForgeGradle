@@ -3,8 +3,9 @@ package net.minecraftforge.gradle.user;
 import net.minecraftforge.gradle.common.Constants;
 
 public final class UserConstants {
+
     private UserConstants() {
-        // no touch
+        // can't touch this
     }
 
     public static final String CONFIG_USERDEV = "userDevPackageDepConfig";
@@ -48,8 +49,8 @@ public final class UserConstants {
     static final String GRADLE_START_CLIENT = "GradleStart";
     static final String GRADLE_START_SERVER = "GradleStartServer";
 
-    // classifiers
+    // Classifiers
     public static final String CLASSIFIER_DEOBF_SRG = "srg";
     public static final String CLASSIFIER_DECOMPILED = "decomp";
-    public static final String CLASSIFIER_SOURCES = "sources";
+    public static final String CLASSIFIER_SOURCES = "compileSources";
 }
