@@ -9,13 +9,11 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.zip.ZipEntry;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -204,32 +202,6 @@ public abstract class GradleStartCommon {
         return Class.forName(classname, true, loader);
     }
 
-    /* ----------- GRIMOIRE SHENANIGANS --------- */
-
-    private static final String DISABLEREFMAP_VAR = "mixin.env.disableRefMap";
-    private static final String DEVENV_VAR = "fml.isDevEnvironment";
-    private static final String GRIMPATCH_VAR = "fml.grimPatches.load";
-
-    private boolean isMixinConfiguration(String name) {
-        String splitName = ((name.contains("/")) ? name.substring(name.lastIndexOf("/")).replace("/", "") : name);
-
-        // I certainly hope we don't really need in-dev support for legacy-type patches
-
-        /*
-        if (legacy) {
-            if (splitName.startsWith("mixins.") && splitName.endsWith(".json")) return true;
-            if (splitName.startsWith("mixins-") && splitName.endsWith(".json")) return true;
-            return splitName.endsWith("-mixins.json");
-        }
-         */
-
-        if (splitName.startsWith("mixins.grim.") && splitName.endsWith(".json"))
-            return true;
-        if (splitName.startsWith("mixins-grim-") && splitName.endsWith(".json"))
-            return true;
-        return splitName.endsWith("-grim-mixins.json");
-    }
-
     /* ----------- COREMOD AND AT HACK --------- */
 
     // coremod hack
@@ -248,18 +220,11 @@ public abstract class GradleStartCommon {
         try {
             atRegistrar = getFmlClass(MOD_ATD_CLASS).getDeclaredMethod(MOD_AT_METHOD, JarFile.class);
         } catch (Throwable t) {
-            // NO-OP
         }
 
-        LOGGER.info("Begin coremod and grimpatch search...");
-        long memorizedTime = System.currentTimeMillis();
-
-        List<String> grimPatches = new ArrayList<String>();
-
         for (URL url : ((URLClassLoader) GradleStartCommon.class.getClassLoader()).getURLs()) {
-            if (!url.getProtocol().startsWith("file"))
-            {
-                continue; // this isnt a file
+            if (!url.getProtocol().startsWith("file")) {
+                continue; //         this isnt a file
             }
 
             File coreMod = new File(url.toURI().getPath());
@@ -269,9 +234,6 @@ public abstract class GradleStartCommon {
                 continue;
             }
 
-            boolean isGrimPatch = false;
-            boolean isCoreMod = false;
-
             if (coreMod.isDirectory()) {
                 File manifestMF = new File(coreMod, "META-INF/MANIFEST.MF");
                 if (manifestMF.exists()) {
@@ -279,33 +241,13 @@ public abstract class GradleStartCommon {
                     manifest = new Manifest(stream);
                     stream.close();
                 }
-
-                // Try to detect directory grimpatch
-                for (File file : coreMod.listFiles()) {
-                    if (file.isFile() && this.isMixinConfiguration(file.getName())) {
-                        isGrimPatch = true;
-                        break;
-                    }
-                }
-            } else if (coreMod.getName().endsWith("jar")) { // its a jar
+            } else if (coreMod.getName().endsWith("jar")) // its a jar
+            {
                 JarFile jar = new JarFile(coreMod);
                 manifest = jar.getManifest();
-
-                Enumeration<? extends ZipEntry> entries = jar.entries();
-
-                // Try to detect jar-file grimpatch
-                while (entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    if (this.isMixinConfiguration(entry.getName())) {
-                        isGrimPatch = true;
-                        break;
-                    }
-                }
-
                 if (atRegistrar != null && manifest != null) {
                     atRegistrar.invoke(null, jar);
                 }
-
                 jar.close();
             }
 
@@ -315,24 +257,9 @@ public abstract class GradleStartCommon {
                 if (!Strings.isNullOrEmpty(clazz)) {
                     LOGGER.info("Found and added coremod: " + clazz);
                     coreMap.put(clazz, coreMod);
-                    isCoreMod = true;
                 }
             }
-
-            if (isGrimPatch) {
-                LOGGER.info("Found and listed GrimPatch at: " + url.toString().replaceAll("%20", " "));
-                grimPatches.add(url.toString());
-            }
         }
-
-        System.setProperty(DEVENV_VAR, Boolean.toString(true)); // Let the world know we are in dev
-        System.setProperty(DISABLEREFMAP_VAR, Boolean.toString(true)); // Refmaps should never be enabled in dev
-
-        if (grimPatches.size() > 0) { // If we have any patches, add them to properties or something
-            System.setProperty(GRIMPATCH_VAR, Joiner.on("<@>").join(grimPatches));
-        }
-
-        LOGGER.info("Finished coremod and grimpatch search, elapsed time: " + (System.currentTimeMillis() - memorizedTime) + "ms");
 
         // set property.
         Set<String> coremodsSet = Sets.newHashSet();
@@ -363,8 +290,7 @@ public abstract class GradleStartCommon {
             Class<? extends IClassTransformer> clazz = null;
             IClassTransformer instance = null;
 
-            // find the instance I want. AND grab the type too, since thats better than
-            // Class.forName()
+            // find the instance I want. AND grab the type too, since thats better than Class.forName()
             for (IClassTransformer transformer : classloader.getTransformers()) {
                 if (transformer.getClass().getCanonicalName().endsWith(MOD_ATD_CLASS)) {
                     clazz = transformer.getClass();
@@ -382,8 +308,7 @@ public abstract class GradleStartCommon {
             Collection<Object> modifiers = null;
             try {
                 // super class of ModAccessTransformer is AccessTransformer
-                Field f = clazz.getSuperclass().getDeclaredFields()[1]; // its the modifiers map. Only non-static field
-                // there.
+                Field f = clazz.getSuperclass().getDeclaredFields()[1]; // its the modifiers map. Only non-static field there.
                 f.setAccessible(true);
 
                 modifiers = ((com.google.common.collect.Multimap) f.get(instance)).values();
