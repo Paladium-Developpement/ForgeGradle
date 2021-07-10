@@ -1,18 +1,19 @@
 package net.minecraftforge.gradle.extrastuff;
 
-import com.google.common.base.Joiner;
-import com.google.common.io.Resources;
-import com.google.gson.reflect.TypeToken;
-import net.minecraftforge.gradle.common.Constants;
-import net.minecraftforge.gradle.json.GLConstantGroup;
-import net.minecraftforge.gradle.json.JsonFactory;
-
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.google.common.base.Joiner;
+import com.google.common.io.Resources;
+import com.google.gson.reflect.TypeToken;
+
+import net.minecraftforge.gradle.common.Constants;
+import net.minecraftforge.gradle.json.GLConstantGroup;
+import net.minecraftforge.gradle.json.JsonFactory;
 
 public class GLConstantFixer {
     private static final String[] PACKAGES = {
@@ -39,20 +40,19 @@ public class GLConstantFixer {
 
     public GLConstantFixer() throws IOException {
         String text = Resources.toString(Resources.getResource(GLConstantFixer.class, "gl.json"), Charset.defaultCharset());
-        json = JsonFactory.GSON.fromJson(text, new TypeToken<List<GLConstantGroup>>() {}.getType());
+        this.json = JsonFactory.GSON.fromJson(text, new TypeToken<List<GLConstantGroup>>() {}.getType());
     }
 
     public String fixOGL(String text) {
         // if it never uses openGL, ignore it.
-        if (!text.contains(IMPORT_CHECK)) {
+        if (!text.contains(IMPORT_CHECK))
             return text;
-        }
 
-        text = annotateConstants(text);
+        text = this.annotateConstants(text);
 
         for (String pack : PACKAGES) {
             if (text.contains(pack + ".")) {
-                text = updateImports(text, CHECK + pack);
+                text = this.updateImports(text, CHECK + pack);
             }
         }
 
@@ -82,7 +82,7 @@ public class GLConstantFixer {
                 String answer = null;
 
                 // iterrate over the JSON
-                for (GLConstantGroup group : json) {
+                for (GLConstantGroup group : this.json) {
 
                     // ensure that the package and method are defined
                     if (group.functions.containsKey(pack) && group.functions.get(pack).contains(method)) {

@@ -1,5 +1,35 @@
 package net.minecraftforge.gradle.tasks;
 
+import static net.minecraftforge.gradle.common.Constants.EXT_NAME_MC;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
+
+import org.gradle.api.file.FileCollection;
+import org.gradle.api.logging.LogLevel;
+import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.TaskAction;
+import org.gradle.process.JavaExecSpec;
+
 import com.github.abrarsyed.jastyle.ASFormatter;
 import com.github.abrarsyed.jastyle.FileWildcardFilter;
 import com.github.abrarsyed.jastyle.OptParser;
@@ -8,6 +38,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+
 import groovy.lang.Closure;
 import net.minecraftforge.gradle.common.BaseExtension;
 import net.minecraftforge.gradle.common.Constants;
@@ -21,23 +52,6 @@ import net.minecraftforge.gradle.patching.ContextualPatch.HunkReport;
 import net.minecraftforge.gradle.patching.ContextualPatch.PatchReport;
 import net.minecraftforge.gradle.patching.ContextualPatch.PatchStatus;
 import net.minecraftforge.gradle.tasks.abstractutil.CachedTask;
-import org.gradle.api.file.FileCollection;
-import org.gradle.api.logging.LogLevel;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.TaskAction;
-import org.gradle.process.JavaExecSpec;
-
-import java.io.*;
-import java.nio.charset.Charset;
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
-
-import static net.minecraftforge.gradle.common.Constants.EXT_NAME_MC;
 
 public class DecompileTask extends CachedTask {
     @InputFile
@@ -69,38 +83,39 @@ public class DecompileTask extends CachedTask {
     @TaskAction
     protected void doMCPStuff() throws Throwable {
         // define files.
-        File temp = new File(getTemporaryDir(), getInJar().getName());
+        File temp = new File(this.getTemporaryDir(), this.getInJar().getName());
 
-        getLogger().info("Decompiling Jar");
-        decompile(getInJar(), getTemporaryDir(), getFernFlower());
+        this.getLogger().info("Decompiling Jar");
+        this.decompile(this.getInJar(), this.getTemporaryDir(), this.getFernFlower());
 
-        getLogger().info("Loading decompiled jar");
-        readJarAndFix(temp);
+        this.getLogger().info("Loading decompiled jar");
+        this.readJarAndFix(temp);
 
-        saveJar(new File(getTemporaryDir(), getInJar().getName() + ".fixed.jar"));
+        this.saveJar(new File(this.getTemporaryDir(), this.getInJar().getName() + ".fixed.jar"));
 
-        getLogger().info("Applying MCP patches");
-        if (getPatch().isFile()) {
-            applySingleMcpPatch(getPatch());
+        this.getLogger().info("Applying MCP patches");
+        if (this.getPatch().isFile()) {
+            this.applySingleMcpPatch(this.getPatch());
         } else {
-            applyPatchDirectory(getPatch());
+            this.applyPatchDirectory(this.getPatch());
         }
 
-        saveJar(new File(getTemporaryDir(), getInJar().getName() + ".patched.jar"));
+        this.saveJar(new File(this.getTemporaryDir(), this.getInJar().getName() + ".patched.jar"));
 
-        getLogger().info("Cleaning source");
-        applyMcpCleanup(getAstyleConfig());
+        this.getLogger().info("Cleaning source");
+        this.applyMcpCleanup(this.getAstyleConfig());
 
-        getLogger().info("Saving Jar");
-        saveJar(getOutJar());
+        this.getLogger().info("Saving Jar");
+        this.saveJar(this.getOutJar());
     }
 
     private void decompile(final File inJar, final File outJar, final File fernFlower) {
-        getProject().javaexec(new Closure<JavaExecSpec>(this) {
+        this.getProject().javaexec(new Closure<JavaExecSpec>(this) {
             private static final long serialVersionUID = 4608694547855396167L;
 
+            @Override
             public JavaExecSpec call() {
-                JavaExecSpec exec = (JavaExecSpec) getDelegate();
+                JavaExecSpec exec = (JavaExecSpec) this.getDelegate();
 
                 exec.args(
                         fernFlower.getAbsolutePath(),
@@ -111,21 +126,22 @@ public class DecompileTask extends CachedTask {
                         "-log=ERROR",
                         inJar.getAbsolutePath(),
                         outJar.getAbsolutePath()
-                );
+                        );
 
                 exec.setMain("-jar");
                 exec.setWorkingDir(fernFlower.getParentFile());
 
                 exec.classpath(Constants.getClassPath());
-                exec.setStandardOutput(Constants.getTaskLogStream(getProject(), getName() + ".log"));
+                exec.setStandardOutput(Constants.getTaskLogStream(DecompileTask.this.getProject(), DecompileTask.this.getName() + ".log"));
 
                 exec.setMaxHeapSize("512M");
 
                 return exec;
             }
 
+            @Override
             public JavaExecSpec call(Object obj) {
-                return call();
+                return this.call();
             }
         });
     }
@@ -136,7 +152,7 @@ public class DecompileTask extends CachedTask {
         ZipEntry entry = null;
         String fileStr;
 
-        BaseExtension exten = (BaseExtension) getProject().getExtensions().getByName(EXT_NAME_MC);
+        BaseExtension exten = (BaseExtension) this.getProject().getExtensions().getByName(EXT_NAME_MC);
         boolean fixInterfaces = !exten.getVersion().equals("1.7.2");
 
         while ((entry = zin.getNextEntry()) != null) {
@@ -147,7 +163,7 @@ public class DecompileTask extends CachedTask {
 
             // resources or directories.
             if (entry.isDirectory() || !entry.getName().endsWith(".java")) {
-                resourceMap.put(entry.getName(), ByteStreams.toByteArray(zin));
+                this.resourceMap.put(entry.getName(), ByteStreams.toByteArray(zin));
             } else {
                 // source!
                 fileStr = new String(ByteStreams.toByteArray(zin), Charset.defaultCharset());
@@ -155,7 +171,7 @@ public class DecompileTask extends CachedTask {
                 // fix
                 fileStr = FFPatcher.processFile(new File(entry.getName()).getName(), fileStr, fixInterfaces);
 
-                sourceMap.put(entry.getName(), fileStr);
+                this.sourceMap.put(entry.getName(), fileStr);
             }
         }
 
@@ -163,39 +179,40 @@ public class DecompileTask extends CachedTask {
     }
 
     private void applySingleMcpPatch(File patchFile) throws Throwable {
-        ContextualPatch patch = ContextualPatch.create(Files.toString(patchFile, Charset.defaultCharset()), new ContextProvider(sourceMap));
-        printPatchErrors(patch.patch(false));
+        ContextualPatch patch = ContextualPatch.create(Files.toString(patchFile, Charset.defaultCharset()), new ContextProvider(this.sourceMap));
+        this.printPatchErrors(patch.patch(false));
     }
 
     private void printPatchErrors(List<PatchReport> errors) throws Throwable {
         boolean fuzzed = false;
         for (PatchReport report : errors) {
             if (!report.getStatus().isSuccess()) {
-                getLogger().log(LogLevel.ERROR, "Patching failed: " + report.getTarget(), report.getFailure());
+                this.getLogger().log(LogLevel.ERROR, "Patching failed: " + report.getTarget(), report.getFailure());
 
                 for (HunkReport hunk : report.getHunks()) {
                     if (!hunk.getStatus().isSuccess()) {
-                        getLogger().error("Hunk " + hunk.getHunkID() + " failed!");
+                        this.getLogger().error("Hunk " + hunk.getHunkID() + " failed!");
                     }
                 }
 
                 throw report.getFailure();
             } else if (report.getStatus() == PatchStatus.Fuzzed) // catch fuzzed patches
             {
-                getLogger().log(LogLevel.INFO, "Patching fuzzed: " + report.getTarget(), report.getFailure());
+                this.getLogger().log(LogLevel.INFO, "Patching fuzzed: " + report.getTarget(), report.getFailure());
                 fuzzed = true;
 
                 for (HunkReport hunk : report.getHunks()) {
                     if (!hunk.getStatus().isSuccess()) {
-                        getLogger().info("Hunk " + hunk.getHunkID() + " fuzzed " + hunk.getFuzz() + "!");
+                        this.getLogger().info("Hunk " + hunk.getHunkID() + " fuzzed " + hunk.getFuzz() + "!");
                     }
                 }
             } else {
-                getLogger().debug("Patch succeeded: " + report.getTarget());
+                this.getLogger().debug("Patch succeeded: " + report.getTarget());
             }
         }
-        if (fuzzed)
-            getLogger().lifecycle("Patches Fuzzed!");
+        if (fuzzed) {
+            this.getLogger().lifecycle("Patches Fuzzed!");
+        }
     }
 
     private void applyPatchDirectory(File patchDir) throws Throwable {
@@ -209,11 +226,11 @@ public class DecompileTask extends CachedTask {
         }
 
         for (String key : patches.keySet()) {
-            ContextualPatch patch = findPatch(patches.get(key));
+            ContextualPatch patch = this.findPatch(patches.get(key));
             if (patch == null) {
-                getLogger().lifecycle("Patch not found for set: " + key); //This should never happen, but whatever
+                this.getLogger().lifecycle("Patch not found for set: " + key); //This should never happen, but whatever
             } else {
-                printPatchErrors(patch.patch(false));
+                this.printPatchErrors(patch.patch(false));
             }
         }
     }
@@ -221,14 +238,18 @@ public class DecompileTask extends CachedTask {
     private ContextualPatch findPatch(Collection<File> files) throws Throwable {
         ContextualPatch patch = null;
         for (File f : files) {
-            patch = ContextualPatch.create(Files.toString(f, Charset.defaultCharset()), new ContextProvider(sourceMap));
+            patch = ContextualPatch.create(Files.toString(f, Charset.defaultCharset()), new ContextProvider(this.sourceMap));
             List<PatchReport> errors = patch.patch(true);
 
             boolean success = true;
             for (PatchReport rep : errors) {
-                if (!rep.getStatus().isSuccess()) success = false;
+                if (!rep.getStatus().isSuccess()) {
+                    success = false;
+                }
             }
-            if (success) break;
+            if (success) {
+                break;
+            }
         }
         return patch;
     }
@@ -242,27 +263,27 @@ public class DecompileTask extends CachedTask {
         Writer writer;
 
         GLConstantFixer fixer = new GLConstantFixer();
-        ArrayList<String> files = new ArrayList<String>(sourceMap.keySet());
+        ArrayList<String> files = new ArrayList<String>(this.sourceMap.keySet());
         Collections.sort(files); // Just to make sure we have the same order.. shouldn't matter on anything but lets be careful.
 
         for (String file : files) {
-            String text = sourceMap.get(file);
+            String text = this.sourceMap.get(file);
 
-            getLogger().debug("Processing file: " + file);
+            this.getLogger().debug("Processing file: " + file);
 
-            getLogger().debug("processing comments");
+            this.getLogger().debug("processing comments");
             text = McpCleanup.stripComments(text);
 
-            getLogger().debug("fixing imports comments");
+            this.getLogger().debug("fixing imports comments");
             text = McpCleanup.fixImports(text);
 
-            getLogger().debug("various other cleanup");
+            this.getLogger().debug("various other cleanup");
             text = McpCleanup.cleanup(text);
 
-            getLogger().debug("fixing OGL constants");
+            this.getLogger().debug("fixing OGL constants");
             text = fixer.fixOGL(text);
 
-            getLogger().debug("formatting source");
+            this.getLogger().debug("formatting source");
             reader = new StringReader(text);
             writer = new StringWriter();
             formatter.format(reader, writer);
@@ -271,12 +292,12 @@ public class DecompileTask extends CachedTask {
             writer.close();
             text = writer.toString();
 
-            getLogger().debug("applying FML transformations");
+            this.getLogger().debug("applying FML transformations");
             text = BEFORE.matcher(text).replaceAll("$1");
             text = AFTER.matcher(text).replaceAll("$1");
             text = FmlCleanup.renameClass(text);
 
-            sourceMap.put(file, text);
+            this.sourceMap.put(file, text);
         }
     }
 
@@ -284,14 +305,14 @@ public class DecompileTask extends CachedTask {
         ZipOutputStream zout = new ZipOutputStream(new FileOutputStream(output));
 
         // write in resources
-        for (Map.Entry<String, byte[]> entry : resourceMap.entrySet()) {
+        for (Map.Entry<String, byte[]> entry : this.resourceMap.entrySet()) {
             zout.putNextEntry(new ZipEntry(entry.getKey()));
             zout.write(entry.getValue());
             zout.closeEntry();
         }
 
         // write in sources
-        for (Map.Entry<String, String> entry : sourceMap.entrySet()) {
+        for (Map.Entry<String, String> entry : this.sourceMap.entrySet()) {
             zout.putNextEntry(new ZipEntry(entry.getKey()));
             zout.write(entry.getValue().getBytes());
             zout.closeEntry();
@@ -301,7 +322,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public HashMap<String, String> getSourceMap() {
-        return sourceMap;
+        return this.sourceMap;
     }
 
     public void setSourceMap(HashMap<String, String> sourceMap) {
@@ -309,7 +330,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public File getAstyleConfig() {
-        return astyleConfig.call();
+        return this.astyleConfig.call();
     }
 
     public void setAstyleConfig(DelayedFile astyleConfig) {
@@ -317,7 +338,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public File getFernFlower() {
-        return fernFlower.call();
+        return this.fernFlower.call();
     }
 
     public void setFernFlower(DelayedFile fernFlower) {
@@ -325,7 +346,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public File getInJar() {
-        return inJar.call();
+        return this.inJar.call();
     }
 
     public void setInJar(DelayedFile inJar) {
@@ -333,7 +354,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public File getOutJar() {
-        return outJar.call();
+        return this.outJar.call();
     }
 
     public void setOutJar(DelayedFile outJar) {
@@ -342,15 +363,15 @@ public class DecompileTask extends CachedTask {
 
     @InputFiles
     public FileCollection getPatches() {
-        File patches = patch.call();
+        File patches = this.patch.call();
         if (patches.isDirectory())
-            return getProject().fileTree(patches);
+            return this.getProject().fileTree(patches);
         else
-            return getProject().files(patches);
+            return this.getProject().files(patches);
     }
 
     public File getPatch() {
-        return patch.call();
+        return this.patch.call();
     }
 
     public void setPatch(DelayedFile patch) {
@@ -358,7 +379,7 @@ public class DecompileTask extends CachedTask {
     }
 
     public HashMap<String, byte[]> getResourceMap() {
-        return resourceMap;
+        return this.resourceMap;
     }
 
     public void setResourceMap(HashMap<String, byte[]> resourceMap) {
@@ -380,7 +401,7 @@ public class DecompileTask extends CachedTask {
         private String strip(String target) {
             target = target.replace('\\', '/');
             int index = 0;
-            for (int x = 0; x < STRIP; x++) {
+            for (int x = 0; x < this.STRIP; x++) {
                 index = target.indexOf('/', index) + 1;
             }
             return target.substring(index);
@@ -388,10 +409,10 @@ public class DecompileTask extends CachedTask {
 
         @Override
         public List<String> getData(String target) {
-            target = strip(target);
+            target = this.strip(target);
 
-            if (fileMap.containsKey(target)) {
-                String[] lines = fileMap.get(target).split("\r\n|\r|\n");
+            if (this.fileMap.containsKey(target)) {
+                String[] lines = this.fileMap.get(target).split("\r\n|\r|\n");
                 List<String> ret = new ArrayList<String>();
                 for (String line : lines) {
                     ret.add(line);
@@ -404,7 +425,7 @@ public class DecompileTask extends CachedTask {
 
         @Override
         public void setData(String target, List<String> data) {
-            fileMap.put(strip(target), Joiner.on(Constants.NEWLINE).join(data));
+            this.fileMap.put(this.strip(target), Joiner.on(Constants.NEWLINE).join(data));
         }
     }
 }

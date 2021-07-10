@@ -1,16 +1,17 @@
 package net.minecraftforge.gradle.extrastuff;
 
-import com.google.code.regexp.Matcher;
-import com.google.code.regexp.Pattern;
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
-import net.minecraftforge.gradle.StringUtils;
-import net.minecraftforge.gradle.common.Constants;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import com.google.code.regexp.Matcher;
+import com.google.code.regexp.Pattern;
+import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
+
+import net.minecraftforge.gradle.StringUtils;
+import net.minecraftforge.gradle.common.Constants;
 
 public class FFPatcher {
     static final String MODIFIERS = "public|protected|private|static|abstract|final|native|synchronized|transient|volatile|strictfp";
@@ -80,11 +81,11 @@ public class FFPatcher {
             String line = lines.get(i);
 
             // who knows.....
-            if (Strings.isNullOrEmpty(line))
+            if (Strings.isNullOrEmpty(line)) {
                 continue;
-                // ignore packages and imports
-            else if (line.startsWith("package") || line.startsWith("import"))
+            } else if (line.startsWith("package") || line.startsWith("import")) {
                 continue;
+            }
 
             Matcher matcher = classPattern.matcher(line);
 
@@ -101,8 +102,9 @@ public class FFPatcher {
                 }
 
                 // fund an enum class, parse it seperately
-                if (matcher.group("type").equals("enum"))
+                if (matcher.group("type").equals("enum")) {
                     processEnum(lines, newIndent, i + 1, classPath, matcher.group("name"));
+                }
 
                 // nested class searching
                 i = processClass(lines, newIndent, i + 1, classPath, matcher.group("name"));
@@ -148,10 +150,11 @@ public class FFPatcher {
                     body = Joiner.on(", ").join(args);
                 }
 
-                if (Strings.isNullOrEmpty(body))
+                if (Strings.isNullOrEmpty(body)) {
                     newLine += matcher.group("end");
-                else
+                } else {
                     newLine += "(" + body + ")" + matcher.group("end");
+                }
             }
 
             // find and replace constructor
@@ -161,15 +164,17 @@ public class FFPatcher {
                 tmp.append(newIndent).append(matcher.group("modifiers")).append(simpleName).append("(");
 
                 String[] args = matcher.group("parameters").split(", ");
-                for (int x = 2; x < args.length; x++)
+                for (int x = 2; x < args.length; x++) {
                     tmp.append(args[x]).append(x < args.length - 1 ? ", " : "");
+                }
                 tmp.append(")");
 
                 tmp.append(matcher.group("end"));
                 newLine = tmp.toString();
 
-                if (args.length <= 2 && newLine.endsWith("}"))
+                if (args.length <= 2 && newLine.endsWith("}")) {
                     newLine = "";
+                }
             }
 
             // find constructor calls...
@@ -188,22 +193,26 @@ public class FFPatcher {
 
             if (prevSynthetic) {
                 matcher = valueField.matcher(line);
-                if (matcher.find())
+                if (matcher.find()) {
                     newLine = "";
+                }
             }
 
             if (line.contains("// $FF: synthetic field")) {
                 newLine = "";
                 prevSynthetic = true;
-            } else
+            } else {
                 prevSynthetic = false;
+            }
 
-            if (newLine != null)
+            if (newLine != null) {
                 lines.set(i, newLine);
+            }
 
             // class has finished.
-            if (line.startsWith(indent + "}"))
+            if (line.startsWith(indent + "}")) {
                 break;
+            }
         }
     }
 
@@ -225,13 +234,15 @@ public class FFPatcher {
             return "";
 
         String[] args = match.group("arguments").split(", ");
-        for (int x = 0; x < args.length; x++)
+        for (int x = 0; x < args.length; x++) {
             args[x] = args[x].split(" ")[1];
+        }
 
         StringBuilder b = new StringBuilder();
         b.append(args[0]);
-        for (int x = 1; x < args.length; x++)
+        for (int x = 1; x < args.length; x++) {
             b.append(", ").append(args[x]);
+        }
         arg1 = b.toString();
 
         if (arg1.equals(arg2))
@@ -257,8 +268,9 @@ public class FFPatcher {
                 p[1] = p[2];
             }
             fixed.append(p[0]).append(" p_").append(number).append('_').append(p[1].substring(3)).append('_');
-            if (x != args.length - 1)
+            if (x != args.length - 1) {
                 fixed.append(", ");
+            }
         }
 
         return match.group().replace(orig, fixed.toString());
