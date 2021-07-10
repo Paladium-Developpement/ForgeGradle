@@ -12,7 +12,10 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -30,6 +33,9 @@ import net.minecraftforge.gradle.delayed.DelayedFile;
 import net.minecraftforge.gradle.tasks.abstractutil.CachedTask;
 
 public class MakeTrueSources extends CachedTask {
+    // Before all gods I swear, this is the last time I touch upon regex
+    private static final Pattern commentLinePattern = Pattern.compile("[^\\n]*//.*[\\s|\\t|\\r\\n]+\\{");
+    private static final Pattern commentPattern = Pattern.compile("//.*");
 
     @InputFile
     private DelayedFile inJar;
@@ -85,7 +91,7 @@ public class MakeTrueSources extends CachedTask {
     private void applyMcpCleanup(File conf) throws IOException {
         ASFormatter formatter = new ASFormatter();
         OptParser parser = new OptParser(formatter);
-        parser.parseOptionFile(conf);
+        //parser.parseOptionFile(conf);
 
         Reader reader;
         Writer writer;
@@ -100,7 +106,25 @@ public class MakeTrueSources extends CachedTask {
 
             this.getLogger().debug("Processing file: " + file);
 
-            this.getLogger().debug("formatting source");
+            Matcher commentLineMatcher = commentLinePattern.matcher(text);
+            List<String> commentLines = new ArrayList<String>();
+
+            while (commentLineMatcher.find()) {
+                String str = commentLineMatcher.group();
+                commentLines.add(str);
+            }
+
+            for (String commentLine : commentLines) {
+                Matcher commentMatcher = commentPattern.matcher(commentLine);
+
+                if (commentMatcher.find()) {
+                    String comment = commentMatcher.group();
+                    String newCommentLine = commentLine.replace(comment, "") + " " + comment;
+                    text = text.replace(commentLine, newCommentLine);
+                    this.getLogger().lifecycle("Fixed comment: " + comment);
+                }
+            }
+
             reader = new StringReader(text);
             writer = new StringWriter();
             formatter.format(reader, writer);
