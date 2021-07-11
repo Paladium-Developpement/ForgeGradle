@@ -25,7 +25,6 @@ import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
 import com.github.abrarsyed.jastyle.ASFormatter;
-import com.github.abrarsyed.jastyle.OptParser;
 import com.github.abrarsyed.jastyle.constants.EnumFormatStyle;
 import com.google.common.io.ByteStreams;
 
@@ -34,8 +33,15 @@ import net.minecraftforge.gradle.tasks.abstractutil.CachedTask;
 
 public class MakeTrueSources extends CachedTask {
     // Before all gods I swear, this is the last time I touch upon regex
-    private static final Pattern commentLinePattern = Pattern.compile("[^\\n]*//.*[\\s|\\t|\\r\\n]+\\{");
-    private static final Pattern commentPattern = Pattern.compile("//.*");
+    private static final String NEWLINE_REGEX = "[\\s|\\t|\\r\\n]+";
+    private static final String SPACE_REGEX = "[\\s]+";
+    private static final Pattern COMMENT_LINE = Pattern.compile("[^\\n]*//.*" + NEWLINE_REGEX + "\\{");
+    private static final Pattern COMMENT = Pattern.compile("//.*");
+    private static final Pattern FORMAT_LINE = Pattern.compile(Pattern.quote(System.lineSeparator())+"[\\s]*\\{");
+    private static final Pattern ELSEIF_LINE = Pattern.compile("\\}[\\s]*else[\\s]+if[\\s]*\\(.*\\)[\\s]*\\{");
+    private static final Pattern ELSE_LINE = Pattern.compile("\\}[\\s]*else[\\s]*\\{");
+    private static final Pattern CONDITION = Pattern.compile("\\(.*\\)");
+    private static final Pattern CLASS = Pattern.compile(".*[\\s]+class[\\s]+[^\\n]*\\{.*\\}", Pattern.DOTALL);
 
     @InputFile
     private DelayedFile inJar;
@@ -90,13 +96,22 @@ public class MakeTrueSources extends CachedTask {
 
     private void applyMcpCleanup(File conf) throws IOException {
         ASFormatter formatter = new ASFormatter();
-        OptParser parser = new OptParser(formatter);
+        //OptParser parser = new OptParser(formatter);
         //parser.parseOptionFile(conf);
 
         Reader reader;
         Writer writer;
 
         formatter.setFormattingStyle(EnumFormatStyle.JAVA);
+        formatter.setBreakElseIfsMode(false);
+        formatter.setSpaceIndentation(4);
+        formatter.setClassIndent(false);
+        formatter.setNamespaceIndent(false);
+        formatter.setCaseIndent(true);
+        formatter.setBreakClosingHeaderBracketsMode(false);
+        formatter.setDeleteEmptyLinesMode(false);
+        formatter.setMaxInStatementIndentLength(40);
+        formatter.setUseProperInnerClassIndenting(true);
 
         ArrayList<String> files = new ArrayList<String>(this.sourceMap.keySet());
         Collections.sort(files); // Just to make sure we have the same order.. shouldn't matter on anything but lets be careful.
@@ -106,16 +121,15 @@ public class MakeTrueSources extends CachedTask {
 
             this.getLogger().debug("Processing file: " + file);
 
-            Matcher commentLineMatcher = commentLinePattern.matcher(text);
-            List<String> commentLines = new ArrayList<String>();
+            Matcher commentLineMatcher = COMMENT_LINE.matcher(text);
+            List<String> lines = new ArrayList<String>();
 
             while (commentLineMatcher.find()) {
-                String str = commentLineMatcher.group();
-                commentLines.add(str);
+                lines.add(commentLineMatcher.group());
             }
 
-            for (String commentLine : commentLines) {
-                Matcher commentMatcher = commentPattern.matcher(commentLine);
+            for (String commentLine : lines) {
+                Matcher commentMatcher = COMMENT.matcher(commentLine);
 
                 if (commentMatcher.find()) {
                     String comment = commentMatcher.group();
@@ -125,13 +139,72 @@ public class MakeTrueSources extends CachedTask {
                 }
             }
 
-            reader = new StringReader(text);
-            writer = new StringWriter();
-            formatter.format(reader, writer);
-            reader.close();
-            writer.flush();
-            writer.close();
-            text = writer.toString();
+            lines.clear();
+
+            /*
+            Matcher elseMatcher = ELSE_LINE.matcher(text);
+
+            while(elseMatcher.find()) {
+                lines.add(elseMatcher.group());
+            }
+
+            for (String elseLine : lines) {
+                String newElseLine = "} else {";
+                text = text.replace(elseLine, newElseLine);
+            }
+
+            lines.clear();
+
+            Matcher elseIfMatcher = ELSEIF_LINE.matcher(text);
+
+            while(elseIfMatcher.find()) {
+                lines.add(elseIfMatcher.group());
+            }
+
+            for (String elseIfLine : lines) {
+                Matcher conditionMatcher = CONDITION.matcher(elseIfLine);
+
+                if (conditionMatcher.find()) {
+                    String condition = conditionMatcher.group();
+                    String newElseIf = "} else if " + condition + "{";
+                    text = text.replace(elseIfLine, newElseIf);
+                }
+            }
+
+            lines.clear();
+
+            Matcher formatMatcher = FORMAT_LINE.matcher(text);
+
+            while (formatMatcher.find()) {
+                lines.add(formatMatcher.group());
+            }
+
+            for (String formatLine : lines) {
+                String newFormat = " {";
+                text = text.replace(formatLine, newFormat);
+            }
+
+            lines.clear();
+             */
+
+            // If this is anonymous subclass, give it some space
+            // text = text.replace("};", "};" + System.lineSeparator());
+
+            // If we have empty {} block, beautify it
+            text = text.replace("{}", "{" + System.lineSeparator() + "   System.out.println(\"NO-OP\");" + System.lineSeparator() + "}");
+
+            // Make it twice to be sure
+            for (int i = 0; i < 2; i++) {
+                reader = new StringReader(text);
+                writer = new StringWriter();
+                formatter.format(reader, writer);
+                reader.close();
+                writer.flush();
+                writer.close();
+                text = writer.toString();
+            }
+
+            text = text.replace("System.out.println(\"NO-OP\");", "// NO-OP");
 
             this.sourceMap.put(file, text);
         }
