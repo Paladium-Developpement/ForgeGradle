@@ -191,7 +191,7 @@ public class MakeTrueSources extends CachedTask {
             // text = text.replace("};", "};" + System.lineSeparator());
 
             // If we have empty {} block, beautify it
-            text = text.replace("{}", "{" + System.lineSeparator() + "   System.out.println(\"NO-OP\");" + System.lineSeparator() + "}");
+            // text = text.replace("{}", "{" + System.lineSeparator() + "   System.out.println(\"NO-OP\");" + System.lineSeparator() + "}");
 
             // Make it twice to be sure
             for (int i = 0; i < 2; i++) {
