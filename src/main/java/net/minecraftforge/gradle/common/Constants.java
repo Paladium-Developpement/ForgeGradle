@@ -23,8 +23,9 @@ public class Constants {
     public static enum SystemArch {
         BIT_32, BIT_64;
 
+        @Override
         public String toString() {
-            return StringUtils.lower(name()).replace("bit_", "");
+            return StringUtils.lower(this.name()).replace("bit_", "");
         }
     }
 
@@ -39,6 +40,7 @@ public class Constants {
 
     @SuppressWarnings("serial")
     public static final Closure<Boolean> CALL_FALSE = new Closure<Boolean>(null) {
+        @Override
         public Boolean call(Object o) {
             return false;
         }
@@ -52,11 +54,12 @@ public class Constants {
     public static final String ASSETS_URL = "http://resources.download.minecraft.net";
     public static final String LIBRARY_URL = "https://libraries.minecraft.net/";
     public static final String FORGE_MAVEN = "https://maven.minecraftforge.net/";
+    public static final String MCP_ARCHIVE_REPO = "https://github.com/Aizistral-Studios/MCP-Archive/raw/dungeon-master/";
     public static final String ASSETS_INDEX_URL = "https://s3.amazonaws.com/Minecraft.Download/indexes/{ASSET_INDEX}.json";
 
     // MCP things
     public static final String CONFIG_MCP_DATA = "mcpSnapshotDataConfig";
-    public static final String MCP_JSON_URL = "http://export.mcpbot.bspk.rs/versions.json";
+    public static final String MCP_JSON_URL = "https://github.com/Aizistral-Studios/MCP-Archive/raw/dungeon-master/versions.json";
 
     // things in the cache dir.
     public static final String NATIVES_DIR = "{CACHE_DIR}/minecraft/net/minecraft/minecraft_natives/{MC_VERSION}";
@@ -117,11 +120,10 @@ public class Constants {
 
     private static SystemArch getArch() {
         String name = StringUtils.lower(System.getProperty("os.arch"));
-        if (name.contains("64")) {
+        if (name.contains("64"))
             return SystemArch.BIT_64;
-        } else {
+        else
             return SystemArch.BIT_32;
-        }
     }
 
     public static String hash(File file) {
@@ -135,10 +137,12 @@ public class Constants {
         LinkedList<String> list = new LinkedList<String>();
 
         if (file.isDirectory()) {
-            for (File f : file.listFiles())
+            for (File f : file.listFiles()) {
                 list.addAll(hashAll(f));
-        } else if (!file.getName().equals(".cache"))
+            }
+        } else if (!file.getName().equals(".cache")) {
             list.add(hash(file));
+        }
 
         return list;
     }
@@ -176,8 +180,8 @@ public class Constants {
             // convert to string
             String result = "";
 
-            for (int i = 0; i < hash.length; i++) {
-                result += Integer.toString((hash[i] & 0xff) + 0x100, 16).substring(1);
+            for (byte element : hash) {
+                result += Integer.toString((element & 0xff) + 0x100, 16).substring(1);
             }
             return result;
         } catch (Exception e) {
@@ -202,8 +206,8 @@ public class Constants {
 
             String result = "";
 
-            for (int i = 0; i < hash.length; i++) {
-                result += Integer.toString((hash[i] & 0xff) + 0x100, 16).substring(1);
+            for (byte element : hash) {
+                result += Integer.toString((element & 0xff) + 0x100, 16).substring(1);
             }
             return result;
         } catch (Exception e) {

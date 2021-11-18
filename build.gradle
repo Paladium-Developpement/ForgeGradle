@@ -8,7 +8,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
 
-def customVersion = '1.4.4'
+def customVersion = '1.4.5'
 group = 'net.minecraftforge.gradle'
 
 if (project.hasProperty("push_release")) {
@@ -18,8 +18,8 @@ if (project.hasProperty("push_release")) {
 }
 
 archivesBaseName = 'ForgeGradle'
-targetCompatibility = '1.6'
-sourceCompatibility = '1.6'
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
 
 repositories {
     mavenLocal()
@@ -49,7 +49,9 @@ repositories {
 }
 
 jar {
-    manifest {
+	outputs.upToDateWhen { false }
+    
+	manifest {
         attributes 'version': project.version, 'javaCompliance': project.targetCompatibility
         attributes 'group': project.group
         attributes 'Implementation-Version': project.version + getGitHash()
@@ -100,6 +102,7 @@ dependencies {
 }
 
 compileJava {
+	outputs.upToDateWhen { false }
     options.deprecation = true
     //options.compilerArgs += ["-Werror", "-Xlint:unchecked"]
 }

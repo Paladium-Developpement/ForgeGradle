@@ -100,6 +100,7 @@ public abstract class BasePlugin<K extends BaseExtension> implements Plugin<Proj
         this.project.allprojects(new Action<Project>() {
             @Override
             public void execute(Project proj) {
+                BasePlugin.this.addMavenRepo(proj, "mcp_archive", Constants.MCP_ARCHIVE_REPO);
                 BasePlugin.this.addMavenRepo(proj, "forge", Constants.FORGE_MAVEN);
                 proj.getRepositories().mavenCentral();
                 BasePlugin.this.addMavenRepo(proj, "minecraft", Constants.LIBRARY_URL);
