@@ -1,5 +1,6 @@
 package net.minecraftforge.gradle.tasks;
 
+import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
@@ -209,7 +210,7 @@ public class ProcessJarTask extends CachedTask {
 
         RemapperProcessor atProcessor = new RemapperProcessor(null, null, accessMap);
         // make remapper
-        JarRemapper remapper = new JarRemapper(srgProcessor, mapping, atProcessor);
+        JarRemapper remapper = new JarRemapperWrapper(srgProcessor, mapping, atProcessor);
 
         // load jar
         Jar input = Jar.init(inJar);

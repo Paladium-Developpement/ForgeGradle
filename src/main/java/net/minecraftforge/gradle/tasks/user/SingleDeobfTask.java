@@ -1,5 +1,6 @@
 package net.minecraftforge.gradle.tasks.user;
 
+import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
@@ -50,7 +51,7 @@ public class SingleDeobfTask extends CachedTask {
         RemapperProcessor srgProcessor = new RemapperProcessor(null, mapping, null);
 
         // make remapper
-        JarRemapper remapper = new JarRemapper(srgProcessor, mapping, null);
+        JarRemapper remapper = new JarRemapperWrapper(srgProcessor, mapping, null);
 
         // load jar
         Jar input = Jar.init(in);

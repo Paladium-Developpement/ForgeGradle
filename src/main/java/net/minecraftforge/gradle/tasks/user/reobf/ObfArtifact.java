@@ -2,6 +2,7 @@ package net.minecraftforge.gradle.tasks.user.reobf;
 
 import COM.rl.NameProvider;
 import COM.rl.obf.RetroGuardImpl;
+import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
@@ -357,7 +358,7 @@ public class ObfArtifact extends AbstractPublishArtifact {
         }
 
         // make remapper
-        JarRemapper remapper = new JarRemapper(null, mapping);
+        JarRemapper remapper = new JarRemapperWrapper(null, mapping);
 
         // load jar
         Jar inputJar = Jar.init(input);

@@ -1,5 +1,6 @@
 package net.minecraftforge.gradle.tasks.dev;
 
+import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import com.google.common.io.Files;
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;
@@ -106,7 +107,7 @@ public class ObfuscateTask extends DefaultTask {
         mapping.loadMappings(Files.newReader(srg, Charset.defaultCharset()), null, null, reverse);
 
         // make remapper
-        JarRemapper remapper = new JarRemapper(null, mapping);
+        JarRemapper remapper = new JarRemapperWrapper(null, mapping);
 
         // load jar
         Jar input = Jar.init(inJar);
