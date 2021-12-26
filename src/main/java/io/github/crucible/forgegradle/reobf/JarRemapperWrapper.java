@@ -11,7 +11,12 @@ import java.io.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
-// Contains features from https://github.com/md-5/SpecialSource/pull/76
+/**
+ * Contains features from <a href="URL#https://github.com/md-5/SpecialSource/pull/76">here</a>.
+ *
+ * @author MJaroslav
+ */
+
 public class JarRemapperWrapper extends JarRemapper {
     private static final int CLASS_LEN = ".class".length(); // From parent
 
@@ -33,7 +38,7 @@ public class JarRemapperWrapper extends JarRemapper {
     @Override
     public void setGenerateAPI(boolean generateAPI) {
         super.setGenerateAPI(generateAPI);
-        copyResources = !generateAPI; // Copy parent private value
+        this.copyResources = !generateAPI; // Copy parent private value
     }
 
     public void setCopyEmptyDirectories(boolean copyEmptyDirectories) {
@@ -54,8 +59,8 @@ public class JarRemapperWrapper extends JarRemapper {
                         // remap classes
                         name = name.substring(0, name.length() - CLASS_LEN);
 
-                        data = remapClassFile(is, repo);
-                        String newName = map(name);
+                        data = this.remapClassFile(is, repo);
+                        String newName = this.map(name);
 
                         entry = new JarEntry(newName == null ? name : newName + ".class");
                     } else if (name.endsWith(".DSA") || name.endsWith(".SF")) {
@@ -63,10 +68,10 @@ public class JarRemapperWrapper extends JarRemapper {
                         continue;
                     } else {
                         // copy other resources
-                        if (!copyResources) {
+                        if (!this.copyResources) {
                             continue; // unless generating an API
                         }
-                        if (!copyEmptyDirectories && name.endsWith("/")) {
+                        if (!this.copyEmptyDirectories && name.endsWith("/")) {
                             continue; // Don't copy empty directories
                         }
                         entry = new JarEntry(name);
