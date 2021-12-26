@@ -1,6 +1,5 @@
 package net.minecraftforge.gradle.tasks;
 
-import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
@@ -8,6 +7,7 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.io.LineProcessor;
 import de.oceanlabs.mcp.mcinjector.MCInjectorImpl;
+import io.github.crucible.forgegradle.reobf.JarRemapperWrapper;
 import net.md_5.specialsource.*;
 import net.md_5.specialsource.provider.JarProvider;
 import net.md_5.specialsource.provider.JointProvider;

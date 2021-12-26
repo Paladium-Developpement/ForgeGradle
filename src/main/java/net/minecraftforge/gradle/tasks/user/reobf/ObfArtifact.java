@@ -2,12 +2,13 @@ package net.minecraftforge.gradle.tasks.user.reobf;
 
 import COM.rl.NameProvider;
 import COM.rl.obf.RetroGuardImpl;
-import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import groovy.lang.Closure;
+import io.github.crucible.forgegradle.reobf.JarRemapperWrapper;
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;

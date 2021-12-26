@@ -1,4 +1,4 @@
-package com.github.mjaroslav.forgegradle.reobf;
+package io.github.crucible.forgegradle.reobf;
 
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;

@@ -1,7 +1,8 @@
 package net.minecraftforge.gradle.tasks.dev;
 
-import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import com.google.common.io.Files;
+
+import io.github.crucible.forgegradle.reobf.JarRemapperWrapper;
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;

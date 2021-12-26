@@ -1,6 +1,5 @@
 package net.minecraftforge.gradle.tasks.user;
 
-import com.github.mjaroslav.forgegradle.reobf.JarRemapperWrapper;
 import net.md_5.specialsource.Jar;
 import net.md_5.specialsource.JarMapping;
 import net.md_5.specialsource.JarRemapper;
@@ -16,6 +15,8 @@ import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+
+import io.github.crucible.forgegradle.reobf.JarRemapperWrapper;
 
 import java.io.File;
 import java.io.IOException;
