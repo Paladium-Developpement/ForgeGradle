@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -26,6 +27,7 @@ import org.gradle.api.tasks.TaskAction;
 
 import com.github.abrarsyed.jastyle.ASFormatter;
 import com.github.abrarsyed.jastyle.constants.EnumFormatStyle;
+import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 
 import net.minecraftforge.gradle.delayed.DelayedFile;
@@ -204,7 +206,11 @@ public class MakeTrueSources extends CachedTask {
                 text = writer.toString();
             }
 
-            text = text.replace("System.out.println(\"NO-OP\");", "// NO-OP");
+            //text = text.replace("System.out.println(\"NO-OP\");", "// NO-OP");
+
+            List<String> textLines = Lists.newArrayList(text.split("\\r?\\n"));
+            textLines.removeIf(string -> string.contains("private static final String __OBFID"));
+            text = textLines.stream().collect(Collectors.joining(System.lineSeparator()));
 
             this.sourceMap.put(file, text);
         }
