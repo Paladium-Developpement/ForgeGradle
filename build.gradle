@@ -8,7 +8,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
 
-def customVersion = '1.4.6'
+def customVersion = '1.5.0'
 group = 'net.minecraftforge.gradle'
 
 if (project.hasProperty("push_release")) {
@@ -123,7 +123,6 @@ task javadocJar(type: Jar, dependsOn: javadoc) {
 
 artifacts {
     archives jar
-    archives javadocJar
 }
 
 test {
@@ -138,7 +137,6 @@ publishing {
     publications {
         bintray(MavenPublication) {
             from components.java
-            artifact javadocJar
 
             pom {
                 name = project.archivesBaseName
