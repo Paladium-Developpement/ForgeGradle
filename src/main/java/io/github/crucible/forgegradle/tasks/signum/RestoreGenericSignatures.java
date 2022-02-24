@@ -26,6 +26,10 @@ public class RestoreGenericSignatures extends CachedTask {
     @OutputFile
     private DelayedFile outJar;
 
+    public RestoreGenericSignatures() {
+        this.getInputs().property("signatureMap", SIGNATURE_MAP);
+    }
+
     @TaskAction
     public void restore() throws Throwable {
         File input = this.inJar.call().getCanonicalFile();
@@ -93,6 +97,18 @@ public class RestoreGenericSignatures extends CachedTask {
         SIGNATURE_MAP.put("field_146293_o", "Ljava/util/List<Lnet/minecraft/client/gui/GuiLabel;>;");
         // playerEntityList
         SIGNATURE_MAP.put("field_72404_b", "Ljava/util/List<Lnet/minecraft/entity/player/EntityPlayerMP;>;");
+        // stringToClassMapping
+        SIGNATURE_MAP.put("field_75625_b", "Ljava/util/Map<Ljava/lang/String;Ljava/lang/Class<+Lnet/minecraft/entity/Entity;>;>;");
+        // classToStringMapping
+        SIGNATURE_MAP.put("field_75626_c", "Ljava/util/Map<Ljava/lang/Class<+Lnet/minecraft/entity/Entity;>;Ljava/lang/String;>;");
+        // IDtoClassMapping
+        SIGNATURE_MAP.put("field_75623_d", "Ljava/util/Map<Ljava/lang/Integer;Ljava/lang/Class<+Lnet/minecraft/entity/Entity;>;>;");
+        // classToIDMapping
+        SIGNATURE_MAP.put("field_75624_e", "Ljava/util/Map<Ljava/lang/Class<+Lnet/minecraft/entity/Entity;>;Ljava/lang/Integer;>;");
+        // stringToIDMapping
+        SIGNATURE_MAP.put("field_75622_f", "Ljava/util/Map<Ljava/lang/String;Ljava/lang/Integer;>;");
+        // entityEggs
+        SIGNATURE_MAP.put("field_75627_a", "Ljava/util/HashMap<Ljava/lang/Integer;Lnet/minecraft/entity/EntityList$EntityEggInfo;>;");
 
         // addInformation
         SIGNATURE_MAP.put("func_77624_a", "(Lnet/minecraft/item/ItemStack;Lnet/minecraft/entity/player/EntityPlayer;Ljava/util/List<Ljava/lang/String;>;Z)V");
