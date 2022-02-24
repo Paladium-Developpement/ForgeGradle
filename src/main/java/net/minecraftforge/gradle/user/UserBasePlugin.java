@@ -85,6 +85,7 @@ import com.google.common.io.Files;
 
 import groovy.lang.Closure;
 import io.github.crucible.forgegradle.tasks.MakeTrueSources;
+import io.github.crucible.forgegradle.tasks.signum.RestoreGenericSignatures;
 import net.minecraftforge.gradle.common.BasePlugin;
 import net.minecraftforge.gradle.common.Constants;
 import net.minecraftforge.gradle.delayed.DelayedFile;
@@ -664,7 +665,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
         }
 
         {
-            String name = "{API_NAME}-" + (this.hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + "-" + CLASSIFIER_DEOBF_SRG + ".jar";
+            String name = "{API_NAME}-" + (this.hasApiVersion() ? "{API_VERSION}" : "{MC_VERSION}") + "-" + CLASSIFIER_DEOBF_SRG + "t.jar";
 
             ProcessJarTask task = this.makeTask("deobfuscateJar", ProcessJarTask.class);
             task.setSrg(this.delayedFile(DEOBF_SRG_SRG));
@@ -745,7 +746,17 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
             decomp.setFernFlower(this.delayedFile(FERNFLOWER));
             decomp.setPatch(this.delayedFile(MCP_PATCH_DIR));
             decomp.setAstyleConfig(this.delayedFile(ASTYLE_CFG));
-            decomp.dependsOn("downloadMcpTools", "deobfuscateJar", "genSrgs");
+            //decomp.dependsOn("downloadMcpTools", "deobfuscateJar", "genSrgs");
+        }
+
+        // Restore generic signatures
+        RestoreGenericSignatures restore = this.makeTask("restoreGenericSignatures", RestoreGenericSignatures.class);
+        {
+            restore.setInJar(this.delayedDirtyFile(null, CLASSIFIER_DEOBF_SRG + "t", "jar", false));
+            restore.setOutJar(decomp.inJar);
+            restore.dependsOn("downloadMcpTools", "deobfuscateJar", "genSrgs");
+            restore.finalizedBy(decomp);
+            decomp.dependsOn(restore);
         }
 
         // Remap to MCP names
@@ -1288,6 +1299,9 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
     }
 
     private void addGitIgnore() {
+        if (true)
+            return;
+
         // TODO Re-evaluate some of our life choices
         File git = new File(this.project.getBuildDir(), ".gitignore");
         if (!git.exists()) {

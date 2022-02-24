@@ -55,7 +55,7 @@ import net.minecraftforge.gradle.tasks.abstractutil.CachedTask;
 
 public class DecompileTask extends CachedTask {
     @InputFile
-    private DelayedFile inJar;
+    public DelayedFile inJar;
 
     @InputFile
     private DelayedFile fernFlower;
@@ -65,8 +65,8 @@ public class DecompileTask extends CachedTask {
     @InputFile
     private DelayedFile astyleConfig;
 
-    @OutputFile
     @Cached
+    @OutputFile
     private DelayedFile outJar;
 
     private HashMap<String, String> sourceMap = new HashMap<String, String>();
