@@ -24,7 +24,7 @@ public class RestoreGenericSignatures extends CachedTask {
 
     @Cached
     @OutputFile
-    private DelayedFile outJar;
+    public DelayedFile outJar;
 
     public RestoreGenericSignatures() {
         this.getInputs().property("signatureMap", SIGNATURE_MAP);

@@ -1196,7 +1196,7 @@ public abstract class UserBasePlugin<T extends UserExtension> extends BasePlugin
      */
     protected void configurePostDecomp(boolean decomp, boolean remove) {
         if (decomp) {
-            ((ReobfTask) this.project.getTasks().getByName("reobf")).setDeobfFile(((ProcessJarTask) this.project.getTasks().getByName("restoreGenericSignatures")).getDelayedOutput());
+            ((ReobfTask) this.project.getTasks().getByName("reobf")).setDeobfFile(((RestoreGenericSignatures) this.project.getTasks().getByName("restoreGenericSignatures")).outJar);
             ((ReobfTask) this.project.getTasks().getByName("reobf")).setRecompFile(this.delayedDirtyFile(this.getSrcDepName(), null, "jar"));
         } else {
             (this.project.getTasks().getByName("compileJava")).dependsOn("deobfBinJar");
