@@ -8,7 +8,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
 
-def customVersion = '1.5.2'
+def customVersion = '1.5.3'
 group = 'net.minecraftforge.gradle'
 
 if (project.hasProperty("push_release")) {
